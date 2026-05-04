@@ -24,6 +24,9 @@
   --navy-950: #030711;
   --navy-900: #07111f;
   --navy-800: #0b1930;
+  /* Atmospheric hero tones — added for cinematic dashboard layer */
+  --atmo-base-top: #0a0e1a;
+  --atmo-base-mid: #0f172a;
   --blue-400: #62b6ff;
   --blue-300: #9bd4ff;
   --gold-400: #f4bf63;
@@ -33,6 +36,21 @@
   --soft: rgba(205, 222, 240, 0.46);
   --line: rgba(155, 212, 255, 0.18);
   --glass: rgba(7, 17, 31, 0.72);
+
+  /* Atmospheric glow tokens — new, added for cinematic layer */
+  --glow-cool-primary: rgba(98, 182, 255, 0.12);
+  --glow-warm-primary: rgba(244, 191, 99, 0.08);
+  --glow-cool-secondary: rgba(98, 182, 255, 0.06);
+  --grid-line: rgba(155, 212, 255, 0.04);
+
+  /* Kicker typography tokens — new */
+  --kicker-cool: rgba(98, 182, 255, 0.85);
+  --kicker-warm: rgba(244, 191, 99, 0.90);
+  --kicker-tracking: 0.18em;
+  --kicker-weight: 500;
+
+  /* Amber accent line — new */
+  --accent-line-amber: rgba(244, 191, 99, 0.5);
 
   /* Semantic status */
   --success-text: #8fd6a7;
@@ -48,11 +66,27 @@
   --neutral-bg: rgba(98, 182, 255, 0.09);
   --neutral-border: rgba(155, 212, 255, 0.20);
 
-  /* Panel surface */
-  --panel-bg: linear-gradient(180deg, rgba(14, 35, 62, 0.78), rgba(4, 11, 22, 0.72));
+  /* Panel surface — darker base so atmospheric glows bleed through */
+  --panel-bg: linear-gradient(180deg, rgba(15, 23, 42, 0.60), rgba(10, 14, 26, 0.40));
   --panel-border: 1px solid var(--line);
-  --panel-shadow: 0 1px 0 rgba(255, 255, 255, 0.08) inset, 0 34px 90px rgba(0, 0, 0, 0.42);
-  --panel-blur: blur(18px) saturate(1.1);
+  --panel-shadow: 0 1px 0 rgba(255, 255, 255, 0.06) inset, 0 24px 60px rgba(0, 0, 0, 0.38);
+  --panel-blur: blur(24px) saturate(1.15);
+  /* Elevated panel glow — amber outer for risk-elevated states */
+  --panel-shadow-elevated: 0 1px 0 rgba(255, 255, 255, 0.06) inset, 0 24px 60px rgba(0, 0, 0, 0.38), 0 0 40px rgba(244, 191, 99, 0.08);
+  /* Panel hover inset glow */
+  --panel-shadow-hover: 0 1px 0 rgba(255, 255, 255, 0.06) inset, 0 0 0 1px rgba(98, 182, 255, 0.25) inset, 0 24px 60px rgba(0, 0, 0, 0.38);
+
+  /* Governance-passed chip — amber border at 0.4 opacity for the 108 tests chip */
+  --governance-border: rgba(244, 191, 99, 0.40);
+  --governance-bg: rgba(244, 191, 99, 0.06);
+  --governance-text: rgba(255, 217, 138, 0.88);
+
+  /* Credit chart palette — brand-aligned, muted toward NH palette */
+  --credit-aaa: rgba(98, 182, 255, 0.85);
+  --credit-a: rgba(155, 212, 255, 0.75);
+  --credit-bbb: rgba(244, 191, 99, 0.80);
+  --credit-bb: rgba(255, 154, 141, 0.75);
+  --credit-nr: rgba(205, 222, 240, 0.30);
 }
 
 /* ── Reset ─────────────────────────────────────────────────────────────── */
@@ -63,47 +97,107 @@ body {
   font-size: 14px;
   line-height: 1.5;
   color: var(--text);
-  background: var(--navy-950);
+  background: var(--atmo-base-top);
   min-height: 100vh;
   overflow-x: hidden;
 }
 a { color: var(--blue-400); text-decoration: none; transition: color 0.15s var(--ease-fluid); }
 a:hover { color: var(--blue-300); }
 
-/* ── Shell background ──────────────────────────────────────────────────── */
+/* ── Shell — atmospheric layered background ────────────────────────────── */
 .shell {
   position: relative;
   min-height: 100vh;
 }
+
+/* Layer 0 — hero image (Earth at night from orbit, NASA/Unsplash) */
+.hero-img {
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center bottom;
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+/* Layer 1 — dark vignette overlay between hero and all other layers */
+.hero-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(
+    to bottom,
+    rgba(10, 14, 26, 0.55) 0%,
+    rgba(10, 14, 26, 0.75) 50%,
+    rgba(10, 14, 26, 0.92) 100%
+  );
+  pointer-events: none;
+}
+
+/* Layer A — deep navy base gradient (sits above hero, below glows) */
 .shell::before {
   content: "";
   position: fixed;
   inset: 0;
-  background:
-    linear-gradient(180deg, #030711 0%, #06101f 48%, #02050b 100%);
+  background: linear-gradient(180deg, rgba(10, 14, 26, 0.45) 0%, rgba(15, 23, 42, 0.30) 55%, rgba(9, 13, 25, 0.55) 100%);
   z-index: 0;
   pointer-events: none;
 }
+
+/* Layer B + C + D — radial atmospheric glows */
 .shell::after {
   content: "";
   position: fixed;
   inset: 0;
   background:
-    radial-gradient(circle at 52% -12%, rgba(98, 182, 255, 0.18), transparent 34rem),
-    radial-gradient(circle at 90% 18%, rgba(244, 191, 99, 0.10), transparent 28rem),
-    radial-gradient(circle at 8% 72%, rgba(98, 182, 255, 0.08), transparent 22rem);
+    radial-gradient(ellipse 1200px 900px at 20% 15%, var(--glow-cool-primary), transparent),
+    radial-gradient(ellipse 1000px 700px at 80% 10%, var(--glow-warm-primary), transparent),
+    radial-gradient(ellipse 800px 600px at 5% 85%, var(--glow-cool-secondary), transparent);
   z-index: 0;
   pointer-events: none;
 }
+
+/* Layer E — 72px grid overlay, barely visible */
 .grid-overlay {
   position: fixed;
   inset: 0;
   z-index: 0;
   pointer-events: none;
   background-image:
-    linear-gradient(rgba(155, 212, 255, 0.04) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(155, 212, 255, 0.04) 1px, transparent 1px);
+    linear-gradient(var(--grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
   background-size: 72px 72px;
+}
+
+/* ── Status ring — dbt governance indicator ────────────────────────────── */
+@keyframes ring-pulse {
+  0%, 100% { opacity: 0.9; }
+  50%       { opacity: 0.7; }
+}
+
+.status-ring-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+}
+.status-ring-wrap svg {
+  display: block;
+  animation: ring-pulse 3s ease-in-out infinite;
+}
+.status-ring-label {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.20em;
+  color: rgba(195, 212, 230, 0.55);
+  white-space: nowrap;
+  text-align: center;
 }
 
 .page {
@@ -111,10 +205,10 @@ a:hover { color: var(--blue-300); }
   z-index: 1;
   width: min(1180px, calc(100% - 32px));
   margin: 0 auto;
-  padding-bottom: 48px;
+  padding-bottom: 56px;
 }
 
-/* ── Panel primitive ───────────────────────────────────────────────────── */
+/* ── Panel primitive — glass, darker so glows show through ────────────── */
 .panel {
   background: var(--panel-bg), var(--glass);
   border: var(--panel-border);
@@ -123,18 +217,28 @@ a:hover { color: var(--blue-300); }
   backdrop-filter: var(--panel-blur);
   -webkit-backdrop-filter: var(--panel-blur);
   padding: 20px 22px;
+  transition: box-shadow 0.2s var(--ease-fluid), border-color 0.2s var(--ease-fluid);
+}
+.panel:hover {
+  box-shadow: var(--panel-shadow-hover);
 }
 
-/* ── Kicker ────────────────────────────────────────────────────────────── */
+/* ── Kicker — tracked-out, cinematic label style ───────────────────────── */
 .kicker {
   font-family: var(--font-mono);
   font-size: 10px;
-  font-weight: 600;
+  font-weight: var(--kicker-weight);
   text-transform: uppercase;
-  letter-spacing: 0.12em;
-  color: var(--blue-400);
+  letter-spacing: var(--kicker-tracking);
+  color: var(--kicker-cool);
   display: block;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
+  /* Amber accent rule under kicker — 40px wide, 1px */
+  padding-bottom: 8px;
+  background-image: linear-gradient(90deg, var(--accent-line-amber) 0px, var(--accent-line-amber) 40px, transparent 40px);
+  background-repeat: no-repeat;
+  background-position: bottom left;
+  background-size: 100% 1px;
 }
 
 /* ── Section heading ───────────────────────────────────────────────────── */
@@ -162,7 +266,7 @@ a:hover { color: var(--blue-300); }
   font-size: 10px;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.10em;
   white-space: nowrap;
   transition: all 0.15s var(--ease-fluid);
 }
@@ -191,6 +295,12 @@ a:hover { color: var(--blue-300); }
   border: 1px solid var(--danger-border);
   color: var(--danger-text);
 }
+/* Governance-passed chip — amber bordered, signals verified status */
+.chip-governance {
+  background: var(--governance-bg);
+  border: 1px solid var(--governance-border);
+  color: var(--governance-text);
+}
 
 /* ── Pill toggle ───────────────────────────────────────────────────────── */
 .pill-group {
@@ -209,7 +319,7 @@ a:hover { color: var(--blue-300); }
   font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: var(--kicker-tracking);
   cursor: pointer;
   transition: all 0.15s var(--ease-fluid);
 }
@@ -225,7 +335,7 @@ a:hover { color: var(--blue-300); }
 
 /* ── Header ────────────────────────────────────────────────────────────── */
 .header {
-  padding: 40px 0 28px;
+  padding: 44px 0 32px;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -233,18 +343,26 @@ a:hover { color: var(--blue-300); }
   flex-wrap: wrap;
 }
 .header-left {}
+/* Header kicker overrides — slightly larger tracking for the hero position */
+.header-left .kicker {
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  color: var(--kicker-cool);
+  margin-bottom: 10px;
+}
 .header-title {
   font-size: 22px;
   font-weight: 700;
   color: var(--text);
   letter-spacing: -0.4px;
   line-height: 1.2;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
 }
 .header-mission {
   font-size: 13px;
   color: var(--muted);
   max-width: 480px;
+  line-height: 1.6;
 }
 .header-right {
   display: flex;
@@ -272,8 +390,9 @@ a:hover { color: var(--blue-300); }
 .strip-label {
   font-family: var(--font-mono);
   font-size: 10px;
+  font-weight: var(--kicker-weight);
   text-transform: uppercase;
-  letter-spacing: 0.10em;
+  letter-spacing: var(--kicker-tracking);
   color: var(--soft);
   margin-right: 2px;
 }
@@ -299,16 +418,26 @@ a:hover { color: var(--blue-300); }
   backdrop-filter: var(--panel-blur);
   -webkit-backdrop-filter: var(--panel-blur);
   padding: 18px 20px;
-  transition: border-color 0.15s var(--ease-fluid);
+  transition: box-shadow 0.2s var(--ease-fluid), border-color 0.2s var(--ease-fluid);
 }
-.kpi-card:hover { border-color: rgba(155, 212, 255, 0.30); }
-.kpi-card.elevated { border-color: var(--warning-border); }
+.kpi-card:hover {
+  box-shadow: var(--panel-shadow-hover);
+  border-color: rgba(155, 212, 255, 0.28);
+}
+/* Elevated KPI — amber outer glow signals risk/watch state */
+.kpi-card.elevated {
+  border-color: var(--warning-border);
+  box-shadow: var(--panel-shadow-elevated);
+}
+.kpi-card.elevated:hover {
+  box-shadow: var(--panel-shadow-elevated), 0 0 0 1px rgba(98, 182, 255, 0.18) inset;
+}
 .kpi-label {
   font-family: var(--font-mono);
   font-size: 10px;
-  font-weight: 600;
+  font-weight: var(--kicker-weight);
   text-transform: uppercase;
-  letter-spacing: 0.10em;
+  letter-spacing: var(--kicker-tracking);
   color: var(--muted);
   margin-bottom: 8px;
 }
@@ -354,9 +483,9 @@ th {
   text-align: left;
   font-family: var(--font-mono);
   font-size: 10px;
-  font-weight: 600;
+  font-weight: var(--kicker-weight);
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.12em;
   color: var(--soft);
   padding: 8px 12px;
   border-bottom: 1px solid var(--line);
@@ -381,10 +510,14 @@ tr:hover td { background: rgba(98, 182, 255, 0.04); }
   gap: 12px;
 }
 .recon-card {
-  background: rgba(3, 7, 17, 0.56);
+  background: rgba(10, 14, 26, 0.50);
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   padding: 14px 16px;
+  transition: border-color 0.15s var(--ease-fluid);
+}
+.recon-card:hover {
+  border-color: rgba(155, 212, 255, 0.30);
 }
 .recon-name {
   font-size: 12px;
@@ -449,10 +582,12 @@ tr:hover td { background: rgba(98, 182, 255, 0.04); }
   background: rgba(98, 182, 255, 0.09);
   border-color: rgba(155, 212, 255, 0.28);
   color: var(--blue-400);
+  box-shadow: 0 0 0 1px rgba(98, 182, 255, 0.18) inset;
 }
 .method-link-icon {
   font-family: var(--font-mono);
   font-size: 10px;
+  letter-spacing: 0.12em;
   color: var(--soft);
 }
 
@@ -464,7 +599,7 @@ tr:hover td { background: rgba(98, 182, 255, 0.04); }
   justify-content: space-between;
   gap: 16px;
   padding: 14px 22px;
-  background: rgba(3, 7, 17, 0.56);
+  background: rgba(10, 14, 26, 0.50);
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
   flex-wrap: wrap;
@@ -479,7 +614,7 @@ tr:hover td { background: rgba(98, 182, 255, 0.04); }
   font-family: var(--font-mono);
   font-size: 10px;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.12em;
   color: var(--soft);
 }
 .provenance-item a {
@@ -488,7 +623,7 @@ tr:hover td { background: rgba(98, 182, 255, 0.04); }
 .provenance-item a:hover { color: var(--blue-300); }
 .provenance-sep {
   font-size: 10px;
-  color: rgba(155, 212, 255, 0.24);
+  color: rgba(155, 212, 255, 0.20);
 }
 
 /* ── Responsive ────────────────────────────────────────────────────────── */
@@ -501,11 +636,26 @@ tr:hover td { background: rgba(98, 182, 255, 0.04); }
   .header { flex-direction: column; gap: 12px; }
   .header-right { padding-top: 0; }
   .provenance { flex-direction: column; align-items: flex-start; gap: 8px; }
+  /* Reduce blur on mobile for performance */
+  .panel, .context-strip, .kpi-card {
+    backdrop-filter: blur(12px) saturate(1.1);
+    -webkit-backdrop-filter: blur(12px) saturate(1.1);
+  }
 }
 </style>
 </head>
 <body>
 <div class="shell">
+  <!-- Hero background: shuttle launch (local asset) -->
+  <img
+    class="hero-img"
+    src="assets/hero-shuttle-launch.jpg"
+    alt=""
+    aria-hidden="true"
+    loading="eager"
+    decoding="async"
+  />
+  <div class="hero-overlay" aria-hidden="true"></div>
   <div class="grid-overlay"></div>
 
   <div class="page">
@@ -534,7 +684,30 @@ tr:hover td { background: rgba(98, 182, 255, 0.04); }
       <div class="strip-divider"></div>
       <span class="chip chip-neutral" id="chip-benchmark">Benchmark: BENCH_SPY</span>
       <span class="chip chip-neutral">As of 2026-05-01</span>
-      <span class="chip chip-neutral">108 dbt tests passing</span>
+      <div class="status-ring-wrap" title="108 dbt data tests passing">
+        <svg width="50" height="50" viewBox="0 0 50 50" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <!-- Track ring -->
+          <circle cx="25" cy="25" r="21" stroke="rgba(244,191,99,0.18)" stroke-width="3" fill="none"/>
+          <!-- Amber progress ring — full circle = all tests passing -->
+          <circle cx="25" cy="25" r="21"
+            stroke="rgba(244,191,99,0.90)"
+            stroke-width="3"
+            fill="none"
+            stroke-linecap="round"
+            stroke-dasharray="131.9"
+            stroke-dashoffset="0"
+            transform="rotate(-90 25 25)"
+          />
+          <!-- Count label -->
+          <text x="25" y="30" text-anchor="middle"
+            font-family="SFMono-Regular,ui-monospace,Menlo,Monaco,Consolas,monospace"
+            font-size="15"
+            font-weight="600"
+            fill="rgba(239,247,255,0.94)"
+          >108</text>
+        </svg>
+        <span class="status-ring-label">dbt tests passing</span>
+      </div>
     </div>
 
     <!-- ── 3. KPI row ─────────────────────────────────────────────────── -->
@@ -558,7 +731,7 @@ tr:hover td { background: rgba(98, 182, 255, 0.04); }
 
     <div class="chart-grid-wide panel">
       <span class="kicker">Sector Concentration</span>
-      <div class="section-title">Sector Allocation &mdash; Top 10</div>
+      <div class="section-title">Sector Allocation — Top 10</div>
       <p class="section-sub">GICS-aligned sector weights as a percent of total NAV</p>
       <div class="chart-wrap-tall"><canvas id="chart-sector"></canvas></div>
     </div>
@@ -631,11 +804,11 @@ tr:hover td { background: rgba(98, 182, 255, 0.04); }
             <span>Data Contract v0.1.0</span>
           </a>
           <div style="margin-top:8px;padding:12px 14px;background:var(--warning-bg);border:1px solid var(--warning-border);border-radius:var(--radius-sm)">
-            <div style="font-family:var(--font-mono);font-size:10px;text-transform:uppercase;letter-spacing:0.08em;color:var(--gold-400);margin-bottom:4px">Synthetic Data Notice</div>
+            <div style="font-family:var(--font-mono);font-size:10px;font-weight:500;text-transform:uppercase;letter-spacing:0.18em;color:var(--kicker-warm);margin-bottom:4px">Synthetic Data Notice</div>
             <p style="font-size:12px;color:var(--muted);line-height:1.5">All bond positions, prices, and ratings are synthetically generated for demonstration purposes. Equity prices are sourced from yfinance (historical market data). This dashboard is illustrative only and must not be used for investment decisions.</p>
           </div>
           <div style="padding:12px 14px;background:var(--neutral-bg);border:1px solid var(--neutral-border);border-radius:var(--radius-sm)">
-            <div style="font-family:var(--font-mono);font-size:10px;text-transform:uppercase;letter-spacing:0.08em;color:var(--blue-400);margin-bottom:4px">Pipeline</div>
+            <div style="font-family:var(--font-mono);font-size:10px;font-weight:500;text-transform:uppercase;letter-spacing:0.18em;color:var(--kicker-cool);margin-bottom:4px">Pipeline</div>
             <p style="font-size:12px;color:var(--muted);line-height:1.5">dbt 1.x &rarr; PostgreSQL 16 &rarr; 7 risk marts + 4 recon gates &rarr; static snapshot. 108 dbt tests passing as of 2026-05-01.</p>
           </div>
         </div>
@@ -790,6 +963,17 @@ function destroyChart(id) {
   if (charts[id]) { charts[id].destroy(); delete charts[id]; }
 }
 
+// ── Shared chart defaults ──────────────────────────────────────────────────
+const TOOLTIP = {
+  backgroundColor: "rgba(10, 14, 26, 0.94)",
+  borderColor: "rgba(155, 212, 255, 0.20)",
+  borderWidth: 1,
+  titleColor: "rgba(239, 247, 255, 0.94)",
+  bodyColor: "rgba(205, 222, 240, 0.68)",
+  padding: 10,
+  cornerRadius: 6
+};
+
 // ── KPI Row ────────────────────────────────────────────────────────────────
 function renderKPI(p) {
   const d = DATA[p];
@@ -829,10 +1013,13 @@ function renderAlloc(p) {
       labels: d.map(x => x.label),
       datasets: [{
         data: d.map(x => x.pct),
-        backgroundColor: ["#62b6ff", "#9bd4ff"],
+        // Two NH cool blues; amber outer ring added via borderColor
+        backgroundColor: ["rgba(98, 182, 255, 0.82)", "rgba(155, 212, 255, 0.72)"],
         borderWidth: 2,
-        borderColor: "rgba(7, 17, 31, 0.72)",
-        hoverOffset: 6
+        // Amber border anchors the brand on the donut ring itself
+        borderColor: ["rgba(244, 191, 99, 0.30)", "rgba(244, 191, 99, 0.20)"],
+        hoverOffset: 6,
+        hoverBorderColor: ["rgba(244, 191, 99, 0.55)", "rgba(244, 191, 99, 0.40)"]
       }]
     },
     options: {
@@ -845,11 +1032,7 @@ function renderAlloc(p) {
           labels: { color: "rgba(205, 222, 240, 0.68)", boxWidth: 10, font: { size: 11 }, padding: 14 }
         },
         tooltip: {
-          backgroundColor: "rgba(4, 11, 22, 0.92)",
-          borderColor: "rgba(155, 212, 255, 0.18)",
-          borderWidth: 1,
-          titleColor: "rgba(239, 247, 255, 0.94)",
-          bodyColor: "rgba(205, 222, 240, 0.68)",
+          ...TOOLTIP,
           callbacks: { label: ctx => `  ${ctx.label}: ${ctx.parsed.toFixed(1)}%` }
         }
       }
@@ -861,13 +1044,20 @@ function renderAlloc(p) {
 function renderSector(p) {
   destroyChart("sector");
   const d = [...DATA[p].sectors].sort((a, b) => a.pct - b.pct);
+  const len = d.length;
   charts.sector = new Chart(document.getElementById("chart-sector"), {
     type: "bar",
     data: {
       labels: d.map(x => x.sector),
       datasets: [{
         data: d.map(x => x.pct),
-        backgroundColor: d.map((x, i) => i === d.length - 1 ? "rgba(98, 182, 255, 0.70)" : "rgba(98, 182, 255, 0.40)"),
+        // Top bar (last after sort) gets amber accent — leading sector reads as alive
+        // Second bar gets brighter cool, rest step down
+        backgroundColor: d.map((x, i) => {
+          if (i === len - 1) return "rgba(244, 191, 99, 0.72)";   // amber — leading sector
+          if (i === len - 2) return "rgba(98, 182, 255, 0.65)";   // bright cool — second
+          return "rgba(98, 182, 255, 0.35)";                       // muted cool — rest
+        }),
         borderRadius: 3,
         borderSkipped: false
       }]
@@ -879,17 +1069,13 @@ function renderSector(p) {
       plugins: {
         legend: { display: false },
         tooltip: {
-          backgroundColor: "rgba(4, 11, 22, 0.92)",
-          borderColor: "rgba(155, 212, 255, 0.18)",
-          borderWidth: 1,
-          titleColor: "rgba(239, 247, 255, 0.94)",
-          bodyColor: "rgba(205, 222, 240, 0.68)",
+          ...TOOLTIP,
           callbacks: { label: ctx => `  ${ctx.parsed.x.toFixed(2)}%` }
         }
       },
       scales: {
         x: {
-          grid: { color: "rgba(155, 212, 255, 0.12)" },
+          grid: { color: "rgba(155, 212, 255, 0.08)" },
           ticks: { color: "rgba(205, 222, 240, 0.46)", callback: v => v + "%" }
         },
         y: {
@@ -905,13 +1091,14 @@ function renderSector(p) {
 function renderCredit(p) {
   destroyChart("credit");
   const d = DATA[p].credit;
+  // Brand-aligned semantic palette: cool blues for IG, amber for crossover (BBB), muted red for HY
   const palette = {
-    "AAA-AA": "#62b6ff",
-    "A":      "#9bd4ff",
-    "BBB":    "#f4bf63",
-    "BB":     "#ff9a8d",
-    "B":      "#ff6b6b",
-    "NR":     "rgba(205, 222, 240, 0.46)"
+    "AAA-AA": "rgba(98, 182, 255, 0.82)",   // cool blue — highest quality
+    "A":      "rgba(155, 212, 255, 0.72)",   // lighter cool blue
+    "BBB":    "rgba(244, 191, 99, 0.72)",    // amber — investment-grade crossover
+    "BB":     "rgba(255, 154, 141, 0.65)",   // muted danger — high yield
+    "B":      "rgba(255, 120, 100, 0.60)",   // deeper danger
+    "NR":     "rgba(205, 222, 240, 0.28)"    // neutral
   };
   charts.credit = new Chart(document.getElementById("chart-credit"), {
     type: "bar",
@@ -920,7 +1107,7 @@ function renderCredit(p) {
       datasets: d.map(x => ({
         label: x.bucket,
         data: [x.pct_fi],
-        backgroundColor: palette[x.bucket] || "rgba(155, 212, 255, 0.40)",
+        backgroundColor: palette[x.bucket] || "rgba(155, 212, 255, 0.35)",
         borderRadius: 3
       }))
     },
@@ -933,17 +1120,13 @@ function renderCredit(p) {
           labels: { color: "rgba(205, 222, 240, 0.68)", boxWidth: 10, font: { size: 11 }, padding: 14 }
         },
         tooltip: {
-          backgroundColor: "rgba(4, 11, 22, 0.92)",
-          borderColor: "rgba(155, 212, 255, 0.18)",
-          borderWidth: 1,
-          titleColor: "rgba(239, 247, 255, 0.94)",
-          bodyColor: "rgba(205, 222, 240, 0.68)",
+          ...TOOLTIP,
           callbacks: { label: ctx => `  ${ctx.dataset.label}: ${ctx.parsed.y.toFixed(1)}%` }
         }
       },
       scales: {
         x: { stacked: true, grid: { display: false }, ticks: { color: "rgba(205, 222, 240, 0.46)" } },
-        y: { stacked: true, grid: { color: "rgba(155, 212, 255, 0.12)" }, ticks: { color: "rgba(205, 222, 240, 0.46)", callback: v => v + "%" } }
+        y: { stacked: true, grid: { color: "rgba(155, 212, 255, 0.08)" }, ticks: { color: "rgba(205, 222, 240, 0.46)", callback: v => v + "%" } }
       }
     }
   });

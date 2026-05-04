@@ -1,0 +1,115 @@
+version: 2
+
+models:
+  - name: dim_security
+    description: One row per security with latest credit rating resolved.
+    columns:
+      - name: sec_id
+        description: Primary key — unique security identifier.
+        data_tests:
+          - not_null
+          - unique
+      - name: asset_class
+        description: Broad asset class.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ["Equity", "Fixed Income", "Benchmark"]
+      - name: rating
+        description: Most recent credit rating (falls back to security master rating).
+
+  - name: dim_portfolio
+    description: One row per distinct portfolio.
+    columns:
+      - name: portfolio_id
+        description: Primary key — unique portfolio identifier.
+        data_tests:
+          - not_null
+          - unique
+
+  - name: dim_benchmark
+    description: One row per distinct benchmark.
+    columns:
+      - name: benchmark_id
+        description: Primary key — unique benchmark identifier.
+        data_tests:
+          - not_null
+          - unique
+
+  - name: dim_date
+    description: Date spine covering the full range of position and price dates.
+    columns:
+      - name: date_day
+        description: Primary key — calendar date.
+        data_tests:
+          - not_null
+          - unique
+      - name: year
+        description: Calendar year.
+        data_tests:
+          - not_null
+      - name: month
+        description: Calendar month (1-12).
+        data_tests:
+          - not_null
+      - name: is_weekend
+        description: True for Saturday and Sunday.
+        data_tests:
+          - not_null
+
+  - name: fct_position_daily
+    description: Daily portfolio holdings; grain is portfolio_id x sec_id x position_date.
+    columns:
+      - name: portfolio_id
+        description: Portfolio identifier.
+        data_tests:
+          - not_null
+      - name: sec_id
+        description: Security identifier.
+        data_tests:
+          - not_null
+      - name: position_date
+        description: As-of date for the holding.
+        data_tests:
+          - not_null
+      - name: market_value
+        description: Market value in USD.
+        data_tests:
+          - not_null
+      - name: weight
+        description: Portfolio weight as a decimal fraction.
+        data_tests:
+          - not_null
+
+  - name: fct_price_daily
+    description: Daily closing prices; grain is sec_id x price_date.
+    columns:
+      - name: sec_id
+        description: Security identifier.
+        data_tests:
+          - not_null
+      - name: price_date
+        description: Price observation date.
+        data_tests:
+          - not_null
+      - name: price
+        description: Closing price.
+        data_tests:
+          - not_null
+
+  - name: fct_benchmark_return_daily
+    description: Daily benchmark total returns; grain is benchmark_id x benchmark_date.
+    columns:
+      - name: benchmark_id
+        description: Benchmark identifier.
+        data_tests:
+          - not_null
+      - name: benchmark_date
+        description: Return observation date.
+        data_tests:
+          - not_null
+      - name: return
+        description: Daily total return as a decimal.
+        data_tests:
+          - not_null

@@ -1,0 +1,122 @@
+version: 2
+
+models:
+  - name: recon_position_to_nav
+    description: Reconciles summed position market values against declared NAV targets per portfolio.
+    columns:
+      - name: portfolio_id
+        description: Primary key — portfolio identifier.
+        data_tests:
+          - not_null
+          - unique
+      - name: position_date
+        description: Latest position date reconciled.
+        data_tests:
+          - not_null
+      - name: sum_mv
+        description: Sum of all position market values in USD.
+        data_tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: "> 0"
+      - name: declared_nav
+        description: Target NAV as declared in the portfolio master.
+        data_tests:
+          - not_null
+      - name: variance_pct
+        description: Absolute percentage difference between sum_mv and declared_nav.
+        data_tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: ">= 0"
+      - name: status
+        description: Reconciliation result.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ["PASS", "FAIL"]
+
+  - name: recon_benchmark_coverage
+    description: Checks that all benchmark constituents have prices on the latest benchmark date.
+    columns:
+      - name: benchmark_id
+        description: Primary key — benchmark identifier.
+        data_tests:
+          - not_null
+          - unique
+      - name: benchmark_date
+        description: Latest benchmark date checked.
+        data_tests:
+          - not_null
+      - name: expected_constituents
+        description: Total number of expected constituent securities.
+        data_tests:
+          - not_null
+      - name: priced_constituents
+        description: Number of constituents with a price on benchmark_date.
+        data_tests:
+          - not_null
+      - name: coverage_pct
+        description: Percentage of constituents with prices.
+        data_tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: "between 0 and 100"
+      - name: status
+        description: Coverage status.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ["PASS", "WARN", "FAIL"]
+
+  - name: recon_stale_prices
+    description: Detects securities with stale prices relative to current date.
+    columns:
+      - name: sec_id
+        description: Primary key — security identifier.
+        data_tests:
+          - not_null
+          - unique
+      - name: last_price_date
+        description: Most recent price date for the security.
+        data_tests:
+          - not_null
+      - name: days_since
+        description: Calendar days between last_price_date and today.
+        data_tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: ">= 0"
+      - name: status
+        description: Staleness status.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ["PASS", "WARN", "FAIL"]
+
+  - name: recon_rating_coverage
+    description: Checks every fixed income security has at least one rating record.
+    columns:
+      - name: sec_id
+        description: Primary key — security identifier.
+        data_tests:
+          - not_null
+          - unique
+      - name: has_rating
+        description: True if at least one rating record exists for this security.
+        data_tests:
+          - not_null
+      - name: status
+        description: Coverage status.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ["PASS", "FAIL"]

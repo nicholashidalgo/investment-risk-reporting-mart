@@ -1,0 +1,25 @@
+name: investment_risk_mart
+version: "1.0.0"
+config-version: 2
+
+profile: investment_risk_mart
+
+model-paths: ["models"]
+
+target-path: "target"
+clean-targets: ["target", "dbt_packages"]
+
+models:
+  investment_risk_mart:
+    bronze:
+      +materialized: view
+      +schema: bronze_dbt
+    silver:
+      +materialized: table
+      +schema: silver
+    marts:
+      +materialized: table
+      +schema: marts
+    recon:
+      +materialized: table
+      +schema: recon

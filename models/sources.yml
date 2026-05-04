@@ -1,0 +1,96 @@
+version: 2
+
+sources:
+  - name: bronze
+    schema: bronze
+    description: Raw ingested data loaded by ingest_seed_data.py into the bronze schema.
+    tables:
+      - name: raw_security_master
+        description: One row per security with static reference attributes.
+        columns:
+          - name: sec_id
+            description: Primary key — unique security identifier.
+          - name: ticker
+            description: Exchange ticker symbol (null for synthetic bonds).
+          - name: asset_class
+            description: Broad asset class (Equity, Fixed Income).
+          - name: sector
+            description: GICS or internal sector label.
+          - name: rating
+            description: Credit rating at time of ingestion.
+          - name: maturity
+            description: Maturity date for fixed income instruments.
+          - name: issue_date
+            description: Original issue date.
+
+      - name: raw_positions
+        description: Daily portfolio holdings at market value.
+        freshness:
+          warn_after: {count: 2, period: day}
+          error_after: {count: 7, period: day}
+        loaded_at_field: position_date
+        columns:
+          - name: portfolio_id
+            description: Portfolio identifier.
+          - name: sec_id
+            description: Security identifier (FK to raw_security_master).
+          - name: position_date
+            description: As-of date for the position.
+          - name: market_value
+            description: Market value in USD.
+          - name: par_value
+            description: Par/face value in USD.
+          - name: weight
+            description: Portfolio weight as a decimal fraction.
+
+      - name: raw_prices
+        description: Daily closing prices per security.
+        freshness:
+          warn_after: {count: 2, period: day}
+          error_after: {count: 7, period: day}
+        loaded_at_field: price_date
+        columns:
+          - name: sec_id
+            description: Security identifier.
+          - name: price_date
+            description: Price observation date.
+          - name: price
+            description: Closing price.
+          - name: source
+            description: Price source (yfinance or synthetic).
+
+      - name: raw_benchmarks
+        description: Daily benchmark total returns.
+        freshness:
+          warn_after: {count: 2, period: day}
+          error_after: {count: 7, period: day}
+        loaded_at_field: benchmark_date
+        columns:
+          - name: benchmark_id
+            description: Benchmark identifier (e.g. BENCH_SPY, BENCH_AGG).
+          - name: benchmark_date
+            description: Return observation date.
+          - name: return
+            description: Daily total return as a decimal.
+
+      - name: raw_ratings
+        description: Point-in-time credit ratings per security and agency.
+        columns:
+          - name: sec_id
+            description: Security identifier.
+          - name: rating_date
+            description: Date the rating was assigned or confirmed.
+          - name: rating
+            description: Credit rating symbol (AAA, AA, A, BBB, BB, NR, etc.).
+          - name: agency
+            description: Rating agency name.
+
+      - name: raw_stress_scenarios
+        description: Stress test factor shocks used in risk analytics.
+        columns:
+          - name: scenario_id
+            description: Scenario identifier.
+          - name: factor
+            description: Risk factor being shocked (equity, interest_rate, credit_spread).
+          - name: shock_pct
+            description: Magnitude of the shock in percentage points or basis points.

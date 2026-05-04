@@ -1,0 +1,27 @@
+# Copy this file to ~/.dbt/profiles.yml and fill in your connection details.
+# Option A: explicit fields (recommended for local dev)
+# Option B: set DATABASE_URL and parse it, or use env_var() calls as shown.
+
+investment_risk_mart:
+  target: dev
+  outputs:
+    dev:
+      type: postgres
+      host: "{{ env_var('PGHOST', 'localhost') }}"
+      port: "{{ env_var('PGPORT', '5432') | int }}"
+      user: "{{ env_var('PGUSER') }}"
+      password: "{{ env_var('PGPASSWORD') }}"
+      dbname: "{{ env_var('PGDATABASE', 'investment_risk') }}"
+      schema: bronze_dbt
+      threads: 4
+      keepalives_idle: 0
+    prod:
+      type: postgres
+      host: "{{ env_var('PGHOST') }}"
+      port: "{{ env_var('PGPORT', '5432') | int }}"
+      user: "{{ env_var('PGUSER') }}"
+      password: "{{ env_var('PGPASSWORD') }}"
+      dbname: "{{ env_var('PGDATABASE', 'investment_risk') }}"
+      schema: bronze_dbt
+      threads: 8
+      keepalives_idle: 0

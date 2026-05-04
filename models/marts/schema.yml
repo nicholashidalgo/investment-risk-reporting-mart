@@ -1,0 +1,226 @@
+version: 2
+
+models:
+  - name: mart_portfolio_exposure
+    description: Asset class, sector, and top-10 concentration per portfolio at latest position date.
+    columns:
+      - name: portfolio_id
+        description: Primary key — portfolio identifier.
+        data_tests:
+          - not_null
+          - unique
+      - name: position_date
+        description: Latest position date used for the snapshot.
+        data_tests:
+          - not_null
+      - name: total_nav
+        description: Total NAV in USD at position date.
+        data_tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: "> 0"
+      - name: top10_concentration_pct
+        description: Percentage of NAV in top 10 positions.
+        data_tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: "between 0 and 100"
+
+  - name: mart_credit_exposure
+    description: Fixed income exposure bucketed by credit rating per portfolio at latest position date.
+    columns:
+      - name: portfolio_id
+        description: Portfolio identifier.
+        data_tests:
+          - not_null
+      - name: position_date
+        description: Latest position date.
+        data_tests:
+          - not_null
+      - name: rating_bucket
+        description: Standardized rating bucket label.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ["AAA-AA", "A", "BBB", "BB", "B", "CCC and below", "NR"]
+      - name: market_value
+        description: Market value in USD for this bucket.
+        data_tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: ">= 0"
+      - name: pct_of_fixed_income
+        description: Bucket share of total fixed income market value.
+        data_tests:
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: "between 0 and 100"
+      - name: pct_of_total_nav
+        description: Bucket share of total portfolio NAV.
+        data_tests:
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: "between 0 and 100"
+
+  - name: mart_duration_summary
+    description: Portfolio-weighted average synthetic duration for fixed income positions.
+    columns:
+      - name: portfolio_id
+        description: Primary key — portfolio identifier.
+        data_tests:
+          - not_null
+          - unique
+      - name: position_date
+        description: Latest position date.
+        data_tests:
+          - not_null
+      - name: fi_nav
+        description: Fixed income NAV in USD.
+        data_tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: "> 0"
+      - name: weighted_avg_duration
+        description: Weighted average modified duration in years.
+        data_tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: "> 0"
+
+  - name: mart_var_parametric
+    description: Parametric VaR at 95% and 99% confidence for each portfolio (zero-correlation assumption).
+    columns:
+      - name: portfolio_id
+        description: Primary key — portfolio identifier.
+        data_tests:
+          - not_null
+          - unique
+      - name: position_date
+        description: Latest position date.
+        data_tests:
+          - not_null
+      - name: nav
+        description: Portfolio NAV in USD.
+        data_tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: "> 0"
+      - name: sigma_daily
+        description: Portfolio daily volatility (weighted, zero-correlation).
+        data_tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: "> 0"
+      - name: var_95_1d
+        description: 1-day 95% VaR in USD.
+        data_tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: "> 0"
+      - name: var_99_1d
+        description: 1-day 99% VaR in USD.
+        data_tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: "> 0"
+
+  - name: mart_tracking_error
+    description: Ex-post annualized tracking error over 30/60/90-day trailing windows.
+    columns:
+      - name: portfolio_id
+        description: Primary key — portfolio identifier.
+        data_tests:
+          - not_null
+          - unique
+      - name: benchmark_id
+        description: Benchmark identifier.
+        data_tests:
+          - not_null
+      - name: te_30d
+        description: Annualized tracking error over trailing 30 days.
+        data_tests:
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: ">= 0"
+      - name: te_60d
+        description: Annualized tracking error over trailing 60 days.
+        data_tests:
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: ">= 0"
+      - name: te_90d
+        description: Annualized tracking error over trailing 90 days.
+        data_tests:
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: ">= 0"
+
+  - name: mart_scenario_impact
+    description: Estimated portfolio P&L impact of each stress scenario.
+    columns:
+      - name: portfolio_id
+        description: Portfolio identifier.
+        data_tests:
+          - not_null
+      - name: scenario_id
+        description: Stress scenario identifier.
+        data_tests:
+          - not_null
+      - name: factor
+        description: Risk factor shocked.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ["equity", "interest_rate", "credit_spread"]
+      - name: mv_change_usd
+        description: Estimated change in market value in USD.
+        data_tests:
+          - not_null
+      - name: mv_change_pct
+        description: Market value change as a percentage of NAV.
+        data_tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: "between -100 and 100"
+
+  - name: mart_concentration_limits
+    description: Per-position concentration flags; breach where weight exceeds 5% of NAV.
+    columns:
+      - name: portfolio_id
+        description: Portfolio identifier.
+        data_tests:
+          - not_null
+      - name: sec_id
+        description: Security identifier.
+        data_tests:
+          - not_null
+      - name: weight_pct
+        description: Position weight as percentage of NAV.
+        data_tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: "between 0 and 100"
+      - name: breach_flag
+        description: True if position exceeds 5% of NAV.
+        data_tests:
+          - not_null
+      - name: breach_amount_over_5pct
+        description: Amount in percentage points over the 5% limit (0 if no breach).
+        data_tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: ">= 0"

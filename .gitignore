@@ -1,0 +1,45 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+.env
+.env.*
+.python-version
+
+# dbt
+target/
+dbt_packages/
+logs/
+.user.yml
+
+# macOS
+.DS_Store
+.DS_Store?
+._*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Secrets
+*.key
+*.pem
+credentials.json
+
+# Local data exports
+*.csv
+*.xlsx
+*.duckdb
+
+# Personal prep docs
+resume_translation.md
+interview_talk_track.md
+cover_letter_lmi.md
+*_personal.md
+
+# Internal design system spec, not part of the product
+CLAUDE_DASHBOARD_BRAND_SYSTEM.md

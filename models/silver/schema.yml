@@ -113,3 +113,72 @@ models:
         description: Daily total return as a decimal.
         data_tests:
           - not_null
+
+  - name: dim_security_history
+    description: >
+      Type 2 SCD history for dim_security. One row per sec_id × version (dbt_valid_from).
+      Sourced from dim_security_snapshot (strategy: check on all attribute columns).
+      Use this model for historical and point-in-time queries.
+    columns:
+      - name: security_key
+        description: Surrogate key — hash of sec_id + valid_from. Unique per SCD version row.
+        data_tests:
+          - not_null
+          - unique
+      - name: sec_id
+        description: Natural key — unique security identifier.
+        data_tests:
+          - not_null
+      - name: valid_from
+        description: Timestamp when this version of the security record became active (dbt_valid_from).
+        data_tests:
+          - not_null
+      - name: valid_to
+        description: Timestamp when this version was superseded (dbt_valid_to); NULL means currently active.
+      - name: is_current
+        description: True if this is the currently active version for this sec_id.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [true, false]
+      - name: scd_id
+        description: dbt-generated hash identifier for this snapshot row (dbt_scd_id).
+        data_tests:
+          - not_null
+          - unique
+      - name: asset_class
+        description: Broad asset class (Equity, Fixed Income, or Benchmark).
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ["Equity", "Fixed Income", "Benchmark"]
+
+  - name: dim_security_current
+    description: >
+      Current-state view over dim_security_history where is_current = true.
+      One row per sec_id. Use this model for all fact-table joins requiring latest security attributes.
+      For point-in-time queries use dim_security_history with a date filter on valid_from / valid_to.
+    columns:
+      - name: security_key
+        description: Surrogate key — unique per sec_id in this view.
+        data_tests:
+          - not_null
+          - unique
+      - name: sec_id
+        description: Natural key — unique security identifier.
+        data_tests:
+          - not_null
+          - unique
+      - name: valid_from
+        description: Timestamp when the current version of this record became active.
+        data_tests:
+          - not_null
+      - name: asset_class
+        description: Broad asset class (Equity, Fixed Income, or Benchmark).
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ["Equity", "Fixed Income", "Benchmark"]

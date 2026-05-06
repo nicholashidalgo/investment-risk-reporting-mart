@@ -1,13 +1,8 @@
-<p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/nicholashidalgo/ai-health-coach/main/assets/nh-logo-dark.svg" width="80">
-    <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/nicholashidalgo/ai-health-coach/main/assets/nh-logo-light.svg" width="80">
-    <img alt="Nicholas Hidalgo" src="https://raw.githubusercontent.com/nicholashidalgo/ai-health-coach/main/assets/nh-logo-light.svg" width="80">
-  </picture>
-</p>
+# Investment Risk Reporting Mart
 
-<h1 align="center">Investment Risk Reporting Mart</h1>
-<p align="center"><b>Production-pattern portfolio risk analytics for institutional asset management</b></p>
+**Governed investment data product for portfolio holdings, exposure, and reconciliation reporting.**
+
+A portfolio-grade demonstration of how I structure governed data products in the investment domain: published data contract, conformed dimensions and facts, blocking data quality gates, source-to-curated reconciliation, and a reporting-ready consumer layer. Built locally with PostgreSQL, dbt, and Python; rendered as a static HTML dashboard.
 
 <p align="center">
   <a href="dashboard/index.html"><img src="https://img.shields.io/badge/Dashboard-View_Live-2563EB?style=for-the-badge" alt="Dashboard"></a>&nbsp;
@@ -26,19 +21,55 @@
 
 ---
 
-### What This Does
+## Current State
 
-<table>
-<tr>
-<td>
+This product is built on a mix of real public market data (equity prices via yfinance) and deterministic synthetic data (bond prices, credit ratings, positions). The next upgrade replaces the synthetic source layer with public SEC 13F regulatory holdings data. Synthetic data will be retained only for seeded defect testing.
 
-Two institutional equity/fixed income portfolios flow through a full dbt pipeline from raw bronze tables into seven risk analytics marts covering parametric VaR, ex-post tracking error, stress scenario impact, credit exposure by rating bucket, duration, and single-name concentration limits. Four reconciliation gates run in parallel to validate position-to-NAV integrity, price coverage, price staleness, and rating completeness.
+This is a portfolio artifact. It demonstrates a production-style operating model. It does not claim production buy-side adoption.
 
-The pipeline is built to production vocabulary and governance standards -- risk formulas, grain definitions, test coverage, and known-limitation documentation included. The static HTML dashboard renders all mart outputs without a build step.
+## What This Project Demonstrates
 
-</td>
-</tr>
-</table>
+| Discipline | Evidence |
+|---|---|
+| Product scope and grain | `DATA_CONTRACT.md` |
+| Stakeholder reporting needs | 7 risk marts (exposure, concentration, benchmark coverage, valuation) |
+| Data quality gates before publication | 108 blocking dbt tests, 100% passing |
+| Source-to-curated reconciliation | 4 reconciliation models in `recon` schema |
+| Reporting readiness | Static HTML dashboard rendering all 7 marts and 4 reconciliation gates |
+| Reproducibility | Deterministic synthetic seeds, documented public API sources, full dbt build chain |
+
+## What This Project Does Not Claim
+
+This repo does not claim production deployment, buy-side adoption, assets under management coverage, business cost savings, analyst time saved, or investment decision impact. It is portfolio evidence of an operating model, not a market deployment.
+
+For full measured controls and roadmap, see `MEASURED_IMPACT.md`.
+
+## Quick Stats
+
+- **24** dbt models across 4 layers (bronze, silver, marts, recon)
+- **108** blocking dbt tests, all passing as of last run
+- **4** reconciliation gates writing to a dedicated `recon` schema
+- **7** risk marts rendered in a static HTML dashboard
+
+## Documents
+
+- `DATA_CONTRACT.md` — published contract for grain, ownership, SLA, semantics
+- `METHODOLOGY.md` — modeling approach, data quality philosophy, reconciliation logic
+- `MEASURED_IMPACT.md` — current controls, test coverage, what this build demonstrates and does not claim
+- `CHANGELOG.md` — version history
+- `AGENTS.md` — operating rules for AI tools working on this repo
+- `PROJECT_STATUS.md` — current build state
+- `DECISIONS.md` — architectural decision log
+- `NEXT_ACTIONS.md` — prioritized backlog
+- `HANDOFF.md` — session-to-session continuity
+
+## Roadmap
+
+| Version | Adds |
+|---|---|
+| v0.2 | Type 2 SCD on dimensions, FK tests, bronze layer tests, GitHub Actions CI |
+| v0.3 | Public SEC 13F ingestion, source-to-curated reconciliation summary |
+| v0.4 | N-PORT integration, fixed-income risk metrics, alternative consumer layer |
 
 ---
 

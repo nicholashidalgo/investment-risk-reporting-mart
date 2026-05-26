@@ -1,16 +1,53 @@
 version: 2
 
 models:
+  - name: dim_investment_manager
+    description: >
+      One row per institutional investment manager sourced from SEC 13F filings.
+      Grain: manager_id (surrogate) and cik (natural key). Type 1 — latest-wins.
+      Type 2 SCD deferred to v0.5; manager names are stable across quarters.
+    columns:
+      - name: manager_id
+        description: Surrogate key — MD5 hash of cik.
+        data_tests:
+          - not_null
+          - unique
+      - name: cik
+        description: SEC CIK zero-padded to 10 digits — natural unique key.
+        data_tests:
+          - not_null
+          - unique
+      - name: manager_name
+        description: Filer entity name as reported to EDGAR.
+        data_tests:
+          - not_null
+      - name: manager_type
+        description: >
+          Classification of the institution type. In v0.4 all 5 managers sourced from
+          SEC 13F are classified as institutional_investment_manager. Extended
+          classification (asset_manager, index_fund_provider, etc.) is a v0.5 item.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ["institutional_investment_manager"]
+
   - name: dim_security
-    description: One row per security with latest credit rating resolved.
+    description: >
+      One row per security. v0.3: extended with cusip column and 13F-sourced securities.
+      Three populations: (1) yfinance equities/benchmarks with CUSIP from seed lookup,
+      (2) yfinance synthetic bonds with null CUSIP, (3) 13F-only securities with
+      sec_id = '13F_' || cusip. Latest credit rating resolved from stg_ratings.
     columns:
       - name: sec_id
         description: Primary key — unique security identifier.
         data_tests:
           - not_null
           - unique
+      - name: cusip
+        description: 9-character CUSIP. Null for synthetic bonds (BOND_NNN) only.
       - name: asset_class
-        description: Broad asset class.
+        description: Broad asset class (Equity, Fixed Income, or Benchmark).
         data_tests:
           - not_null
           - accepted_values:
@@ -18,6 +55,16 @@ models:
                 values: ["Equity", "Fixed Income", "Benchmark"]
       - name: rating
         description: Most recent credit rating (falls back to security master rating).
+      - name: _source_system
+        description: >
+          Origin of the security record. Values: yfinance (covers both real yfinance
+          equities/benchmarks and synthetic bonds which share the same ingestion path
+          through raw_security_master), sec_13f (13F-only securities sourced from EDGAR).
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ["yfinance", "sec_13f"]
 
   - name: dim_portfolio
     description: One row per distinct portfolio.
@@ -62,53 +109,83 @@ models:
     description: Daily portfolio holdings; grain is portfolio_id x sec_id x position_date.
     columns:
       - name: portfolio_id
-        description: Portfolio identifier.
+        description: Portfolio identifier. FK to dim_portfolio.
         data_tests:
           - not_null
+          - relationships:
+              to: ref('dim_portfolio')
+              field: portfolio_id
       - name: sec_id
-        description: Security identifier.
+        description: Security identifier. FK to dim_security.
         data_tests:
           - not_null
+          - relationships:
+              to: ref('dim_security')
+              field: sec_id
       - name: position_date
-        description: As-of date for the holding.
+        description: As-of date for the holding. FK to dim_date.
         data_tests:
           - not_null
+          - relationships:
+              to: ref('dim_date')
+              field: date_day
       - name: market_value
         description: Market value in USD.
         data_tests:
           - not_null
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: ">= 0"
       - name: weight
         description: Portfolio weight as a decimal fraction.
         data_tests:
           - not_null
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: "between 0 and 1"
 
   - name: fct_price_daily
     description: Daily closing prices; grain is sec_id x price_date.
     columns:
       - name: sec_id
-        description: Security identifier.
+        description: Security identifier. FK to dim_security.
         data_tests:
           - not_null
+          - relationships:
+              to: ref('dim_security')
+              field: sec_id
       - name: price_date
-        description: Price observation date.
+        description: Price observation date. FK to dim_date.
         data_tests:
           - not_null
+          - relationships:
+              to: ref('dim_date')
+              field: date_day
       - name: price
         description: Closing price.
         data_tests:
           - not_null
+          - dbt_utils.expression_is_true:
+              arguments:
+                expression: "> 0"
 
   - name: fct_benchmark_return_daily
     description: Daily benchmark total returns; grain is benchmark_id x benchmark_date.
     columns:
       - name: benchmark_id
-        description: Benchmark identifier.
+        description: Benchmark identifier. FK to dim_benchmark.
         data_tests:
           - not_null
+          - relationships:
+              to: ref('dim_benchmark')
+              field: benchmark_id
       - name: benchmark_date
-        description: Return observation date.
+        description: Return observation date. FK to dim_date.
         data_tests:
           - not_null
+          - relationships:
+              to: ref('dim_date')
+              field: date_day
       - name: return
         description: Daily total return as a decimal.
         data_tests:
@@ -154,6 +231,61 @@ models:
           - accepted_values:
               arguments:
                 values: ["Equity", "Fixed Income", "Benchmark"]
+
+  - name: fct_manager_holding
+    description: >
+      Institutional manager holdings fact table. Grain: one row per
+      (manager_id, security_id, period_of_report). Sourced from bronze.raw_13f_holdings
+      joined to dim_investment_manager (on cik) and dim_security (on cusip).
+      Multiple bronze rows per CUSIP (different investment_discretion categories) are
+      aggregated: value and shares are summed, voting authority is summed.
+      Holdings with no matching CUSIP in dim_security are excluded.
+    columns:
+      - name: holding_id
+        description: Surrogate key — hash of manager_id + security_id + period_of_report.
+        data_tests:
+          - not_null
+          - unique
+      - name: manager_id
+        description: FK to dim_investment_manager.manager_id.
+        data_tests:
+          - not_null
+          - relationships:
+              to: ref('dim_investment_manager')
+              field: manager_id
+      - name: security_id
+        description: FK to dim_security.sec_id.
+        data_tests:
+          - not_null
+          - relationships:
+              to: ref('dim_security')
+              field: sec_id
+      - name: period_of_report
+        description: Reporting period end date.
+        data_tests:
+          - not_null
+      - name: value_thousands_usd
+        description: >
+          Market value as filed in the 13F Information Table, in thousands of USD.
+          Use value_usd (= value_thousands_usd * 1000) for monetary calculations.
+        data_tests:
+          - not_null
+      - name: value_usd
+        description: Market value in USD (value_thousands_usd * 1000).
+        data_tests:
+          - not_null
+      - name: investment_discretion
+        description: >
+          Investment discretion type as reported on the 13F: SOLE, SHARED, or DFND.
+          SEC allows SOLE, SHARED, and DFND; this dataset (Q4 2025, 5 managers) contains
+          only DFND and SOLE. The accepted_values test includes all three valid SEC codes
+          so future filings with SHARED values continue to pass.
+          When multiple discretion rows are aggregated, max() is applied as a stable
+          tie-breaker; bronze is authoritative for split detail.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ["SOLE", "SHARED", "DFND"]
 
   - name: dim_security_current
     description: >

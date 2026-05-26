@@ -120,3 +120,52 @@ models:
           - accepted_values:
               arguments:
                 values: ["PASS", "FAIL"]
+
+  - name: recon_filing_totals_reconciliation
+    description: >
+      Filing-level reconciliation of SEC cover-page reported totals against
+      bronze.raw_13f_holdings sums per accession_no. Grain: one row per
+      (cik, accession_no, period_of_report). PASS if abs(variance_pct) < 0.001%.
+      Backed by singular test recon_filing_totals_no_failures.
+    columns:
+      - name: cik
+        description: SEC CIK zero-padded to 10 digits.
+        data_tests:
+          - not_null
+      - name: period_of_report
+        description: Reporting period end date.
+        data_tests:
+          - not_null
+      - name: status
+        description: PASS if variance < 0.001%, FAIL otherwise.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ["PASS", "FAIL"]
+
+  - name: recon_bronze_to_silver_reconciliation
+    description: >
+      Manager-level reconciliation of bronze.raw_13f_holdings totals against
+      silver.fct_manager_holding totals per (cik, period_of_report). PASS only
+      if value variance is exactly zero — the bronze-to-silver transformation is
+      deterministic and tolerates no rounding. Row count difference between bronze
+      and silver is expected (bronze: one row per discretion category; silver: one
+      row per manager-security-period after aggregation) and is informational only.
+      Backed by singular test recon_bronze_to_silver_no_failures.
+    columns:
+      - name: cik
+        description: SEC CIK zero-padded to 10 digits.
+        data_tests:
+          - not_null
+      - name: period_of_report
+        description: Reporting period end date.
+        data_tests:
+          - not_null
+      - name: status
+        description: PASS if value variance = 0, FAIL otherwise.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ["PASS", "FAIL"]

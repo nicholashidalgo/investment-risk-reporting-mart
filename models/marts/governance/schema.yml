@@ -1,0 +1,64 @@
+version: 2
+
+models:
+  - name: governance_scorecard
+    description: >
+      Governance health scorecard. Grain: one row per KPI (kpi_id is the natural key).
+      Computes 8 governance indicators from warehouse tables — reconciliation gate status,
+      freshness, holdings volume, security coverage, zero-value flagging, concentration
+      breaches, and composite reporting readiness.
+
+      All metric values are derived from actual warehouse data; no values are hardcoded.
+      The composite KPI-08 (Reporting Readiness) is READY only when all blocking
+      controls pass with no FAIL rows in any recon gate and no stale prices.
+
+      Severity values: GREEN = within threshold; YELLOW = approaching threshold;
+      RED = threshold exceeded; INFO = informational / non-blocking.
+
+      This model is a portfolio governance control artifact. It does not constitute
+      a production certification workflow or a regulatory compliance assertion.
+    columns:
+      - name: kpi_id
+        description: Natural key — unique identifier for the KPI row (KPI-01 through KPI-08).
+        data_tests:
+          - not_null
+          - unique
+      - name: kpi_name
+        description: Human-readable name for the KPI.
+        data_tests:
+          - not_null
+      - name: kpi_category
+        description: Functional category of the KPI.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ["reconciliation", "freshness", "completeness", "data_quality",
+                         "risk_controls", "certification"]
+      - name: metric_value
+        description: >
+          The computed metric value as a formatted string. Examples: '5/5 PASS',
+          '0 days since latest price (2025-12-31)', 'READY'.
+        data_tests:
+          - not_null
+      - name: severity
+        description: >
+          Governance severity level. GREEN = healthy; YELLOW = review recommended;
+          RED = blocked; INFO = informational.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ["GREEN", "YELLOW", "RED", "INFO"]
+      - name: detail
+        description: Human-readable explanation of the metric value and any required action.
+        data_tests:
+          - not_null
+      - name: source_model
+        description: The dbt model(s) from which this KPI is derived.
+        data_tests:
+          - not_null
+      - name: scorecard_as_of
+        description: Timestamp when this scorecard row was generated.
+        data_tests:
+          - not_null

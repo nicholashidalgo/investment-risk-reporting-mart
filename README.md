@@ -7,8 +7,8 @@ A portfolio-grade demonstration of how I structure governed data products in the
 <p align="center">
   <a href="dashboard/index.html"><img src="https://img.shields.io/badge/Dashboard-View_Live-2563EB?style=for-the-badge" alt="Dashboard"></a>&nbsp;
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge" alt="License"></a>&nbsp;
-  <a href="https://github.com/nicholashidalgo/investment-risk-reporting-mart"><img src="https://img.shields.io/badge/Tests-108_passing-16a34a?style=for-the-badge" alt="Tests"></a>&nbsp;
-  <a href="https://github.com/nicholashidalgo/investment-risk-reporting-mart"><img src="https://img.shields.io/badge/dbt_Models-24-7c3aed?style=for-the-badge" alt="Models"></a>
+  <a href="https://github.com/nicholashidalgo/investment-risk-reporting-mart"><img src="https://img.shields.io/badge/Tests-192_passing-16a34a?style=for-the-badge" alt="Tests"></a>&nbsp;
+  <a href="https://github.com/nicholashidalgo/investment-risk-reporting-mart"><img src="https://img.shields.io/badge/dbt_Models-32-7c3aed?style=for-the-badge" alt="Models"></a>
 </p>
 
 <p align="center">
@@ -21,35 +21,42 @@ A portfolio-grade demonstration of how I structure governed data products in the
 
 ---
 
-## Current State
+## Current State — v0.4
 
-This product is built on a mix of real public market data (equity prices via yfinance) and deterministic synthetic data (bond prices, credit ratings, positions). The next upgrade replaces the synthetic source layer with public SEC 13F regulatory holdings data. Synthetic data will be retained only for seeded defect testing.
+Built on real public data: SEC EDGAR 13F-HR regulatory filings (30,135 holdings from 5 institutional managers, Q4 2025) and yfinance equity/benchmark prices. Synthetic bonds and positions are retained for risk analytics structure; clearly labeled throughout.
 
-This is a portfolio artifact. It demonstrates a production-style operating model. It does not claim production buy-side adoption.
+This is a portfolio artifact demonstrating a production-style investment data operating model. It does not claim production deployment or buy-side adoption.
 
 ## What This Project Demonstrates
 
 | Discipline | Evidence |
 |---|---|
 | Product scope and grain | `DATA_CONTRACT.md` |
-| Stakeholder reporting needs | 7 risk marts (exposure, concentration, benchmark coverage, valuation) |
-| Data quality gates before publication | 108 blocking dbt tests, 100% passing |
-| Source-to-curated reconciliation | 4 reconciliation models in `recon` schema |
-| Reporting readiness | Static HTML dashboard rendering all 7 marts and 4 reconciliation gates |
+| Real regulatory data ingestion | SEC EDGAR 13F pipeline — 30,135 holdings, 5 managers, 5/5 filings reconciled |
+| Data quality gates | 192 blocking dbt tests, 227/227 PASS (includes 14 FK relationship tests) |
+| Source-to-curated reconciliation | 7 reconciliation gates in `recon` schema; bronze-to-silver variance $0 |
+| Governance scorecard | Live `governance_scorecard` model — 8 KPIs queryable from warehouse |
+| Certification registry | `seeds/governance/certification_registry.csv` — per-model certification status |
+| Source freshness | `raw_13f_filings` freshness gate via `_ingested_at` TIMESTAMPTZ |
+| Type 2 SCD | `dim_security_history` — snapshot-based history with SCD integrity tests |
+| Reporting readiness | Static HTML dashboard rendering all 7 risk marts and 7 reconciliation gates |
 | Reproducibility | Deterministic synthetic seeds, documented public API sources, full dbt build chain |
 
 ## What This Project Does Not Claim
 
-This repo does not claim production deployment, buy-side adoption, assets under management coverage, business cost savings, analyst time saved, or investment decision impact. It is portfolio evidence of an operating model, not a market deployment.
+This repo does not claim production deployment, buy-side adoption, AUM coverage, business cost savings, or investment decision impact. It is portfolio evidence of an operating model, not a market deployment. Yahoo Finance prices are not production-grade. Synthetic bond and position data have no real-world basis.
 
-For full measured controls and roadmap, see `MEASURED_IMPACT.md`.
+For full measured controls and limitations, see `MEASURED_IMPACT.md`.
 
 ## Quick Stats
 
-- **24** dbt models across 4 layers (bronze, silver, marts, recon)
-- **108** blocking dbt tests, all passing as of last run
-- **4** reconciliation gates writing to a dedicated `recon` schema
-- **7** risk marts rendered in a static HTML dashboard
+- **32** dbt models across 5 layers (bronze, silver, marts/governance, recon) + 1 snapshot + 2 seeds
+- **192** blocking dbt tests — 227/227 PASS in full dbt build
+- **7** reconciliation gates in dedicated `recon` schema
+- **8** live governance KPIs in `governance_scorecard` model
+- **30,135** SEC 13F holdings — 5 managers, Q4 2025, 5/5 filings reconciled
+- **14** FK relationship tests across all silver fact tables
+- **1** source freshness gate (`raw_13f_filings`)
 
 ## Documents
 
@@ -62,6 +69,18 @@ For full measured controls and roadmap, see `MEASURED_IMPACT.md`.
 - `DECISIONS.md` — architectural decision log
 - `NEXT_ACTIONS.md` — prioritized backlog
 - `HANDOFF.md` — session-to-session continuity
+
+### Architecture Documentation (`docs/architecture/`)
+
+| Document | What It Covers |
+|----------|---------------|
+| [PRIVATE_MARKETS_DATA_GOVERNANCE_ARCHITECTURE.md](docs/architecture/PRIVATE_MARKETS_DATA_GOVERNANCE_ARCHITECTURE.md) | Governance model, ownership, stewardship, quality controls, lineage, and reporting certification |
+| [DATA_QUALITY_RULES_AND_CONTROLS.md](docs/architecture/DATA_QUALITY_RULES_AND_CONTROLS.md) | 45 quality rules across completeness, uniqueness, referential integrity, freshness, reconciliation |
+| [BUSINESS_GLOSSARY_AND_METADATA_MODEL.md](docs/architecture/BUSINESS_GLOSSARY_AND_METADATA_MODEL.md) | 23 defined business terms with grain, ownership, allowed values, and downstream usage |
+| [LINEAGE_AND_RECONCILIATION_MODEL.md](docs/architecture/LINEAGE_AND_RECONCILIATION_MODEL.md) | Full lineage from raw EDGAR XML to certified mart; 7 reconciliation checkpoints |
+| [GOVERNANCE_SCORECARD_MODEL.md](docs/architecture/GOVERNANCE_SCORECARD_MODEL.md) | 8 data health KPIs with current values, thresholds, and stakeholder views |
+| [AI_READINESS_AND_AGENTIC_GOVERNANCE.md](docs/architecture/AI_READINESS_AND_AGENTIC_GOVERNANCE.md) | Semantic allowlists, restricted fields, SQL safety rules, human approval gates |
+| [INVESTMENT_DATA_OPERATING_MODEL.md](docs/architecture/INVESTMENT_DATA_OPERATING_MODEL.md) | 8-stage operating model: intake → ingestion → validation → certification → triage → remediation → release → review |
 
 ## Roadmap
 
@@ -230,7 +249,7 @@ open dashboard/index.html
 | ![Transform](https://img.shields.io/badge/Transforms-FF694B?style=flat-square) | dbt 1.x (bronze / silver / marts / recon) |
 | ![Ingest](https://img.shields.io/badge/Ingest-3776AB?style=flat-square) | Python 3.11, yfinance, NumPy |
 | ![Dashboard](https://img.shields.io/badge/Dashboard-FF6384?style=flat-square) | Static HTML, Chart.js 4.x (no build step) |
-| ![Tests](https://img.shields.io/badge/Tests-16a34a?style=flat-square) | 108 dbt tests (not_null, unique, accepted_values, expression_is_true) |
+| ![Tests](https://img.shields.io/badge/Tests-16a34a?style=flat-square) | 192 dbt tests (not_null, unique, accepted_values, expression_is_true, relationships) |
 
 ---
 
@@ -240,7 +259,7 @@ open dashboard/index.html
 dbt test
 ```
 
-108 dbt schema tests covering all primary keys, critical measure columns, accepted value sets for `asset_class`, `rating_bucket`, `factor`, and `status` columns, and numeric range guards across all seven risk marts and four recon gates. All 108 pass on the current dataset.
+192 dbt schema and singular tests covering all primary keys, critical measure columns, accepted value sets, numeric range guards, FK referential integrity across all silver fact tables, and governance scorecard column constraints. All 192 pass on the current dataset.
 
 ---
 

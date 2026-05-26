@@ -330,13 +330,16 @@ Equities and benchmarks (asset_class ≠ 'Fixed Income') are excluded from this 
 
 ## 8. Test Coverage
 
-**Total dbt tests: 108**
+**Total dbt tests: 192** *(as of v0.4, 2026-05-26)*
 
 | Category | Count | Models covered |
 |---|---|---|
-| `not_null` | 36 | All PK and critical measure columns across all models |
-| `unique` | 18 | All PK columns |
-| `accepted_values` | 12 | asset_class, rating_bucket, factor, status columns |
-| `dbt_utils.expression_is_true` | 42 | Numeric range guards (> 0, ≥ 0, between 0 and 100, between −100 and 100) |
+| `not_null` | ~52 | All PK and critical measure columns across all models |
+| `unique` | ~25 | All PK columns |
+| `accepted_values` | ~22 | asset_class, rating_bucket, factor, status, severity, kpi_category, investment_discretion, manager_type, _source_system |
+| `dbt_utils.expression_is_true` | ~45 | Numeric range guards (> 0, ≥ 0, between 0 and 1, between 0 and 100, between −100 and 100) |
+| `relationships` (FK) | 14 | All silver fact tables — portfolio_id, security_id, date_id, manager_id, benchmark_id |
+| Custom singular tests | 6 | Recon gate FAIL rows, SCD invariants, holdings positivity |
+| Governance / seed tests | ~28 | governance_scorecard columns, certification_registry columns |
 
-Tests run with `dbt test` after every `dbt run`. All 108 tests pass on the current dataset as of 2026-05-01.
+Tests run with `dbt build` after every pipeline run. All 192 tests pass on the current dataset as of 2026-05-26.

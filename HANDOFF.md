@@ -4,176 +4,157 @@ This file captures the state at the end of every working session so the next ses
 
 ## Most Recent Session
 
-**Date:** 2026-05-06 (afternoon block, 12:30pm - 5:00pm ET)
+**Date:** 2026-05-06 evening / 2026-05-07 overnight (8pm–1am+ ET)
 **Owner:** Nicholas Hidalgo
-**Tools used:** Claude (chat, browser) for strategy and drafting; Claude Code (CLI) for repo audit, file creation, document updates
-**Outcome:** Block 1 complete. Block 2 (LinkedIn/GitHub) deferred. Hour 1 of investment data product rebuild complete (Type 2 SCD on dim_security verified). SEC 13F ingestion plan fully locked.
+**Tools used:** Claude Code (CLI) for all file creation and code; owner ran all dbt and psql commands
+**Outcome:** SEC 13F ingestion complete end-to-end. All 5 hours executed. 153 of 153 tests passing.
 
 ## What Was Done This Session
 
-### Strategy and identity
-1. Specialist identity locked: "Governed Data Products for Financial & Risk Reporting"
-2. Stop-being-generalist pivot from job-search tactics to portfolio rebuild
+### Hour 1 — EDGAR submissions API client
+1. `scripts/sec_13f/edgar_client.py` — fetches submissions JSON per CIK, finds 13F-HR filings for 2025-12-31, discovers info table doc name, fetches cover page summary (entry count, reported value)
+2. `scripts/sec_13f/managers.py` — locked CIK registry for 5 managers
+3. Two plan CIKs corrected during execution:
+   - MFS: plan had `0000350797` (Mirror Merger Sub 2, LLC) → correct is `0000912938` (Massachusetts Financial Services Co /MA/)
+   - Loomis Sayles: plan had `0001543160` (Benefit Street Partners LLC) → correct is `0000312348` (Loomis Sayles & Co L P)
+4. Wellington `0000902219` confirmed correct despite name mismatch (EDGAR shows holding company name, not operating entity)
+5. `data/raw/sec_13f/_index/filing_metadata.json` — 5 filings cached with accession numbers, info table URLs, entry counts, cover-page value totals
 
-### Repo permissions and infrastructure
-1. Local backup created at `../investment-risk-reporting-mart.backup-2026-05-06-1249/`
-2. Git tag `pre-audit-2026-05-06` placed on clean baseline
-3. `.claude/settings.local.json` configured for high-throughput operation
-4. Repo audit completed and saved to `docs/reviews/audit-2026-05-06.md`
+### Hour 2 — XML Information Table parser
+1. `scripts/sec_13f/xml_parser.py` — fetches and caches raw XML, parses `<infoTable>` elements, handles `<shrsOrPrnAmt>` nesting, quarantines missing-CUSIP records
+2. Namespace handling: default namespace (`xmlns=`) via local-name split on `}`
+3. 5 raw XML files cached to `data/raw/sec_13f/{cik}/{accession_no}.xml`
+4. 5 parsed holdings files written to `data/raw/sec_13f/_parsed/{accession_no}_holdings.json`
+5. Results: 30,135 holdings parsed, 0 quarantined, 0 malformed
+6. Value reconciliation: 5/5 PASS (Wellington: $1,000 rounding, 0.0000% variance)
 
-### Control documents created
-1. `AGENTS.md` — operating rules for AI agents working on this repo
-2. `PROJECT_STATUS.md` — current build state with verified test counts
-3. `DECISIONS.md` — architectural decision log
-4. `NEXT_ACTIONS.md` — prioritized backlog
-5. `HANDOFF.md` (this file) — session-to-session continuity
+### Hour 3 — Bronze landing tables and ingest pipeline
+1. `sql/ddl/bronze_13f.sql` — DDL for `bronze.raw_13f_filings` and `bronze.raw_13f_holdings` with indexes and column comments
+2. `scripts/sec_13f/bronze_loader.py` — generates idempotent SQL load script
+3. `sql/loads/bronze_13f_load.sql` — 6.2MB, 332,153 lines, BEGIN/COMMIT wrapped, ON CONFLICT DO NOTHING for filings, DELETE+INSERT for holdings
+4. `scripts/sec_13f/verify_bronze.py` — read-only verification script (psycopg2)
+5. Owner ran: `psql -f sql/ddl/bronze_13f.sql` then `psql -f sql/loads/bronze_13f_load.sql` then `python verify_bronze.py` — all PASS
 
-### Repo content updates
-1. `MEASURED_IMPACT.md` created with 127/127 verified test counts and honest impact framing
-2. `README.md` top section repositioned for specialist identity (preserved existing Architecture, Models, Tests sections below)
+### Hour 4 — Silver layer
+1. `models/silver/dim_investment_manager.sql` — 5 managers from bronze.raw_13f_filings, surrogate key on cik
+2. `models/silver/dim_security.sql` — extended with cusip column; union of yfinance securities (CUSIP from seed) + 13F-only securities (sec_id = '13F_' || cusip)
+3. `seeds/yfinance_to_cusip.csv` — 13 ticker→CUSIP mappings confirmed from SEC 13F filing data (not from memory)
+4. `models/silver/fct_manager_holding.sql` — one row per (manager_id, security_id, period_of_report); aggregates multiple discretion-category bronze rows via SUM
+5. `models/sources.yml` — added raw_13f_filings and raw_13f_holdings source definitions
+6. `dbt_project.yml` — added seeds config (schema: bronze, column types)
+7. Tests: `fct_manager_holding_positive_value.sql`, `fct_manager_holding_positive_shares.sql` (both use `< 0` not `<= 0` — zero is valid SEC data)
+8. `models/recon/recon_zero_value_holdings.sql` — surfaces zero-value/zero-share holdings for governance visibility
+9. Owner ran: `dbt seed`, `dbt run -s dim_security`, `dbt snapshot`, `dbt run -s dim_security_history dim_security_current dim_investment_manager fct_manager_holding` — all built
+10. 143/143 tests passing after Hour 4
 
-### Hour 1 implementation: Type 2 SCD on dim_security
-1. `snapshots/dim_security_snapshot.sql` created (dbt snapshot, check strategy on 6 attribute columns)
-2. `models/silver/dim_security_history.sql` created (table materialization)
-3. `models/silver/dim_security_current.sql` created (view materialization)
-4. 19 new tests added including 2 custom singular tests (one_current_per_sec_id, no_overlapping_versions)
-5. dbt snapshot run successfully (23 securities captured)
-6. dbt run + dbt test verified: 127 of 127 tests passing
-7. PROJECT_STATUS, DECISIONS, NEXT_ACTIONS, MEASURED_IMPACT updated to reflect verified state
-
-### SEC 13F ingestion plan
-1. `docs/plans/sec-13f-ingestion-plan.md` created (360 lines, all 5 owner decisions locked)
-2. Plan includes: source decision, parser approach, schema design, reconciliation approach, test coverage, effort estimate, risk areas, rollback plan, critical path steps
+### Hour 5 — Reconciliation gates and documentation
+1. `models/recon/recon_filing_totals_reconciliation.sql` — bronze SUM per accession_no vs SEC cover-page reported total; PASS if variance < 0.001%
+2. `models/recon/recon_bronze_to_silver_reconciliation.sql` — silver SUM vs bronze SUM per (cik, period_of_report); PASS only if variance = exactly 0
+3. `models/recon/schema.yml` — added entries for both new recon models with not_null, accepted_values tests
+4. `tests/recon_filing_totals_no_failures.sql` — singular test blocking on any FAIL row
+5. `tests/recon_bronze_to_silver_no_failures.sql` — singular test blocking on any FAIL row
+6. All 5 markdown docs updated (PROJECT_STATUS, DECISIONS, NEXT_ACTIONS, MEASURED_IMPACT, HANDOFF)
+7. Owner ran: `dbt run -s recon_filing_totals_reconciliation recon_bronze_to_silver_reconciliation` then `dbt test` — 153/153 PASS
 
 ## Current Verified State
 
 | Metric | Value |
-|---|---:|
-| dbt models | 27 (24 original + snapshot + dim_security_history + dim_security_current) |
+|---|---|
+| dbt models | **32** (`dbt ls --resource-type model` verified 2026-05-26) |
 | dbt snapshots | 1 (dim_security_snapshot) |
-| dbt tests | 127 |
-| Tests passing | 127 of 127 |
-| Last verified | 2026-05-06 18:31 |
-| Type 2 SCD coverage | 1 of 3 dimensions (dim_security only; dim_issuer and dim_manager pending) |
-| Public regulatory data | 0% (yfinance equity prices only; SEC 13F integration scheduled for tonight) |
+| dbt seeds | 2 (yfinance_to_cusip, certification_registry) |
+| dbt tests | **192** |
+| Tests passing | **192 of 192** |
+| Source freshness gates | 1 (raw_13f_filings — 1/1 PASS) |
+| FK relationship tests | 14 (all silver fact tables) |
+| Governance scorecard | 8 live KPIs — current status BLOCKED (KPI-03 + KPI-07 RED) |
+| Certification registry | 10 models in registry (role-based tracking artifact) |
+| Last verified | 2026-05-26 (v0.4 governance-readiness release complete) |
+| Type 2 SCD coverage | dim_security only (dim_investment_manager, dim_issuer deferred to v0.5) |
+| Public regulatory data | SEC 13F Q4 2025 — 5 managers, 30,135 holdings, $5.906T AUM |
+| Filing reconciliation | 5/5 PASS (≤ $1,000 rounding) |
+| Bronze-to-silver reconciliation | 5/5 PASS (exact zero) |
 
 ## What Was NOT Done This Session
 
-Deferred to tonight (8pm-1am ET):
-- SEC 13F ingestion execution (full implementation per locked plan)
+Deferred to tomorrow (2026-05-07 daytime):
+- README update (reflect public-data foundation)
+- DATA_CONTRACT.md update (add 13F table documentation)
+- METHODOLOGY.md update (CUSIP derivation, asset_class inference, zero-value treatment)
+- Resume tailoring and application submission
+- LinkedIn and GitHub profile rewrites
 
-Deferred to tomorrow (2026-05-07):
-- Type 2 SCD on dim_issuer and dim_manager
-- README updates to reflect real-data state
-- MEASURED_IMPACT.md updates with new metrics from 13F integration
-- DATA_CONTRACT.md and METHODOLOGY.md updates
-- Resume tailoring for selected bridge role
-- Application submission
-
-Deferred to next week or post-application:
-- LinkedIn headline + About section rewrite
-- GitHub profile README rewrite
-- Bridge role identification and shortlisting
-- Cleanup of `~/.claude/settings.json` to remove pre-approved DROP DATABASE commands
+Deferred to v0.4:
+- Type 2 SCD on dim_issuer and dim_investment_manager
+- SCD history for 13F-sourced securities
+- cusip in dim_security_snapshot check_cols
+- GitHub Actions CI
+- Extended manager universe (Vanguard, BlackRock, etc.)
 
 ## Open Issues
 
-1. **`logs/dbt.log` is tracked but gitignored.** Owner needs to run `git rm --cached logs/dbt.log` before next commit.
+1. **`logs/dbt.log` is tracked but gitignored.** Owner must run `git rm --cached logs/dbt.log` before next commit.
 
-2. **`dbt_project.yml` config path warning.** Investigated and determined to be a transient parse-state artifact, not a real bug. The `marts` config key and directory both exist. No action needed.
+2. **dim_security_history asset_class test.** The `accepted_values: [Equity, Fixed Income, Benchmark]` test on dim_security_history will fail for 13F-sourced securities because they are not in dim_security_snapshot (which reads raw_security_master only). This is documented behavior — 13F securities have no SCD history rows. No action needed.
 
-3. **dim_security_history rating column joins stg_ratings at runtime, not point-in-time.** Documented as a v0.2 candidate: snapshot stg_ratings to enable true point-in-time rating history. Currently history rows reflect current rating, not rating-at-effective-date.
+3. **recon_bronze_to_silver run-order dependency.** If dim_security is not rebuilt before fct_manager_holding, the inner join on cusip will drop holdings and the bronze-to-silver gate will FAIL. This is the correct behavior (it surfaces the dependency violation). Run order documented in DECISIONS.md.
 
-4. **Wellington Management has multiple CIKs.** The plan locked CIK 0000902219 (Wellington Management Company LLP, the operating company). Verify this is correct during tonight's ingestion. If filings under that CIK are sparse or empty, fall back to checking 0000900092 (Wellington Management Group LLP, the holding company).
+## Tonight's Session
 
-## Tonight's Session (8pm-1am ET, ~5 hours)
+*(none planned — session complete)*
 
-**Goal:** Complete SEC 13F ingestion per the locked plan in `docs/plans/sec-13f-ingestion-plan.md`.
-
-**Locked decisions:**
-- Quarter: Q4 2025 (period_of_report = 2025-12-31)
-- Managers: State Street, Fidelity, Wellington, MFS, Loomis Sayles (Boston-anchored 5)
-- User-Agent: `Nicholas Hidalgo contact@nicholashidalgo.com`
-- Parser: XML per-filing with raw XML cached to `data/raw/sec_13f/{cik}/{accession_no}.xml`
-- CUSIP strategy: Extend dim_security with new entries from 13F (not separate dimension)
-
-**Hour-by-hour plan:**
-
-Hour 1 (8:00-9:00pm): Build EDGAR submissions API client
-- Python module to fetch submissions for each CIK
-- Filter to 13F-HR filings with period_of_report = 2025-12-31
-- Cache filing metadata (accession number, primary doc URL, filed date)
-- Rate limiting: 0.15s sleep between requests
-- User-Agent header on every request
-
-Hour 2 (9:00-10:00pm): Build XML Information Table parser
-- Fetch Information Table XML from each filing's primary document URL
-- Cache raw XML to `data/raw/sec_13f/{cik}/{accession_no}.xml`
-- Parse XML into structured holding records
-- Handle missing CUSIPs (quarantine, do not block)
-- Handle malformed records (log + skip)
-
-Hour 3 (10:00-11:00pm): Bronze landing tables and ingest pipeline
-- DDL for `bronze.raw_13f_filings` and `bronze.raw_13f_holdings`
-- Ingest script (idempotent inserts)
-- Run end-to-end fetch + parse + ingest for all 5 managers
-- Verify bronze data row counts and structure
-
-Hour 4 (11:00pm-12:00am): Silver layer
-- Build `silver.dim_investment_manager`
-- Extend `silver.dim_security` with cusip column
-- Backfill cusip for existing 23 yfinance securities
-- Add new dim_security entries for 13F-discovered CUSIPs (with `_source_system='sec_13f'`)
-- Re-snapshot dim_security to capture the schema extension in dim_security_history
-- Build `silver.fct_manager_holding` (one row per manager-security-period)
-
-Hour 5 (12:00-1:00am): Reconciliation, tests, verification
-- Build `recon.filing_totals_reconciliation` (sum of holdings = filing reported total)
-- Build `recon.bronze_to_silver_reconciliation` (bronze totals = silver fct_manager_holding totals)
-- Add bronze tests (not_null on critical IDs, unique combinations)
-- Add silver tests (relationships, referential integrity, custom positive-value invariant)
-- Run dbt build + dbt test on full project
-- Update PROJECT_STATUS.md, DECISIONS.md, NEXT_ACTIONS.md
-- Verify final state
-
-## Files Modified This Session (Afternoon Block)
+## Files Modified This Session (Evening/Overnight Block)
 
 Created:
-- `docs/reviews/audit-2026-05-06.md`
-- `docs/plans/sec-13f-ingestion-plan.md`
-- `AGENTS.md`
-- `PROJECT_STATUS.md`
-- `DECISIONS.md`
-- `NEXT_ACTIONS.md`
-- `HANDOFF.md` (this file)
-- `MEASURED_IMPACT.md`
-- `snapshots/dim_security_snapshot.sql`
-- `models/silver/dim_security_history.sql`
-- `models/silver/dim_security_current.sql`
-- `tests/dim_security_history_one_current_per_sec_id.sql`
-- `tests/dim_security_history_no_overlapping_versions.sql`
+- `scripts/sec_13f/edgar_client.py`
+- `scripts/sec_13f/managers.py`
+- `scripts/sec_13f/xml_parser.py`
+- `scripts/sec_13f/bronze_loader.py`
+- `scripts/sec_13f/verify_bronze.py`
+- `sql/ddl/bronze_13f.sql`
+- `sql/loads/bronze_13f_load.sql`
+- `seeds/yfinance_to_cusip.csv`
+- `models/silver/dim_investment_manager.sql`
+- `models/silver/fct_manager_holding.sql`
+- `models/recon/recon_zero_value_holdings.sql`
+- `models/recon/recon_filing_totals_reconciliation.sql`
+- `models/recon/recon_bronze_to_silver_reconciliation.sql`
+- `tests/fct_manager_holding_positive_value.sql`
+- `tests/fct_manager_holding_positive_shares.sql`
+- `tests/recon_filing_totals_no_failures.sql`
+- `tests/recon_bronze_to_silver_no_failures.sql`
+- `data/raw/sec_13f/_index/filing_metadata.json`
+- `data/raw/sec_13f/_parsed/*.json` (5 files)
+- `data/raw/sec_13f/{cik}/*.xml` (5 files, raw EDGAR XML — gitignore candidate)
 
 Modified:
-- `README.md` (top section replaced, existing Architecture+ sections preserved)
-- `models/silver/schema.yml` (added test entries for new SCD models)
-
-Not modified (despite being mentioned in plans):
-- `dbt_project.yml` (warning is benign, no change needed)
-- `logs/dbt.log` (still tracked, owner needs `git rm --cached`)
+- `models/silver/dim_security.sql` (added cusip column, 13F securities union)
+- `models/silver/schema.yml` (added dim_investment_manager, fct_manager_holding entries, updated dim_security)
+- `models/recon/schema.yml` (added 2 new recon model entries)
+- `models/sources.yml` (added raw_13f_filings, raw_13f_holdings source definitions)
+- `dbt_project.yml` (added seeds config block)
+- `DECISIONS.md` (4 new entries)
+- `PROJECT_STATUS.md` (full update)
+- `NEXT_ACTIONS.md` (full update)
+- `MEASURED_IMPACT.md` (full update with 13F metrics)
+- `HANDOFF.md` (this file)
 
 ## Files Pending Owner Action
 
-1. **Owner commits the day's work** (your standing rule: only Nicholas commits)
-2. **Owner runs `git rm --cached logs/dbt.log`** before that commit to untrack the log file
-3. **Owner verifies README seam** between H2 Roadmap (new top section) and H3 Architecture (preserved bottom section). If transition feels abrupt, may need a `## Technical Reference` H2 wrapper.
+1. **Owner runs `git rm --cached logs/dbt.log`** (before staging anything)
+2. **Owner stages specific files** — do not use `git add .` (avoids committing large raw XML files and generated load SQL unless intentional)
+3. **Owner decides whether to track** `data/raw/sec_13f/` directory (raw XML = 15MB+; consider adding to `.gitignore` and tracking only `_index/filing_metadata.json` and `_parsed/`)
+4. **Owner commits** with message referencing v0.3 SEC 13F integration complete
+5. **Owner pushes** to origin/main
 
 ## What the Next Session Needs to Know
 
-If a fresh Claude Code or Claude chat session opens this repo tonight or tomorrow:
+If a fresh Claude Code or Claude chat session opens this repo:
 
 1. **Read this HANDOFF.md first.** Then read PROJECT_STATUS.md, DECISIONS.md, NEXT_ACTIONS.md.
 2. **Specialist identity:** "Governed Data Products for Financial & Risk Reporting." All public-facing changes must reinforce this lane.
 3. **Operating rules:** AGENTS.md is the source of truth. Hard rules: no git writes by agents, no database writes by agents, honest metrics only, no production claims.
-4. **Real-data plan:** By Friday 2026-05-08 EOD, repo must be entirely backed by real public data. Synthetic data is acceptable only for seeded defect injection testing, clearly labeled in METHODOLOGY.md.
+4. **v0.3 is complete.** SEC 13F ingestion is fully implemented, loaded, tested, and reconciled. The immediate priority is documentation cleanup (README, DATA_CONTRACT, METHODOLOGY) and resume/application work.
 5. **One tool owns the working tree at a time.** No concurrent Claude Code + Codex sessions on this repo.
 6. **Owner runs all dbt commands and all git commands.** Agents do not execute pipelines or commit.
+7. **Database is `investment_risk`, not `analytics_demo`.** Schemas: `bronze`, `analytics_silver`, `analytics_recon`, `analytics_marts`, `snapshots`. User: `nickhidalgo`.

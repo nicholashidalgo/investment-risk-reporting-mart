@@ -1,0 +1,67 @@
+{
+  "generated_at": "2026-05-06",
+  "target_period": "2025-12-31",
+  "filing_count": 5,
+  "filings": [
+    {
+      "cik": "0000093751",
+      "manager_name": "STATE STREET CORP",
+      "accession_no": "0000093751-26-000100",
+      "primary_doc": "xslForm13F_X02/primary_doc.xml",
+      "filed_date": "2026-02-13",
+      "period_of_report": "2025-12-31",
+      "info_table_doc": "XML_Infotable.xml",
+      "info_table_url": "https://www.sec.gov/Archives/edgar/data/93751/000009375126000100/XML_Infotable.xml",
+      "table_entry_total": 4288,
+      "table_value_total_thousands": 2980911055209
+    },
+    {
+      "cik": "0000315066",
+      "manager_name": "FMR LLC",
+      "accession_no": "0000315066-26-000611",
+      "primary_doc": "xslForm13F_X02/primary_doc.xml",
+      "filed_date": "2026-02-17",
+      "period_of_report": "2025-12-31",
+      "info_table_doc": "20260217_FMRLLC.xml",
+      "info_table_url": "https://www.sec.gov/Archives/edgar/data/315066/000031506626000611/20260217_FMRLLC.xml",
+      "table_entry_total": 13225,
+      "table_value_total_thousands": 1961271425547
+    },
+    {
+      "cik": "0000902219",
+      "manager_name": "WELLINGTON MANAGEMENT GROUP LLP",
+      "accession_no": "0000902219-26-000103",
+      "primary_doc": "xslForm13F_X02/primary_doc.xml",
+      "filed_date": "2026-02-17",
+      "period_of_report": "2025-12-31",
+      "info_table_doc": "form13fInfoTable.xml",
+      "info_table_url": "https://www.sec.gov/Archives/edgar/data/902219/000090221926000103/form13fInfoTable.xml",
+      "table_entry_total": 7580,
+      "table_value_total_thousands": 570656014882
+    },
+    {
+      "cik": "0000912938",
+      "manager_name": "MASSACHUSETTS FINANCIAL SERVICES CO /MA/",
+      "accession_no": "0000912938-26-000025",
+      "primary_doc": "xslForm13F_X02/primary_doc.xml",
+      "filed_date": "2026-01-22",
+      "period_of_report": "2025-12-31",
+      "info_table_doc": "form13fInfoTable.xml",
+      "info_table_url": "https://www.sec.gov/Archives/edgar/data/912938/000091293826000025/form13fInfoTable.xml",
+      "table_entry_total": 3918,
+      "table_value_total_thousands": 310120832326
+    },
+    {
+      "cik": "0000312348",
+      "manager_name": "LOOMIS SAYLES & CO L P",
+      "accession_no": "0000312348-26-000014",
+      "primary_doc": "xslForm13F_X02/primary_doc.xml",
+      "filed_date": "2026-02-12",
+      "period_of_report": "2025-12-31",
+      "info_table_doc": "LOOMIS_13F_Q4_2025.xml",
+      "info_table_url": "https://www.sec.gov/Archives/edgar/data/312348/000031234826000014/LOOMIS_13F_Q4_2025.xml",
+      "table_entry_total": 1124,
+      "table_value_total_thousands": 82951227562
+    }
+  ]
+}

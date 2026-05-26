@@ -6,7 +6,10 @@ sources:
     description: Raw ingested data loaded by ingest_seed_data.py into the bronze schema.
     tables:
       - name: raw_security_master
-        description: One row per security with static reference attributes.
+        description: >
+          One row per security with static reference attributes.
+          No timestamp column is present; source freshness is not applicable.
+          Refreshed on each full ingestion run of ingest_seed_data.py.
         columns:
           - name: sec_id
             description: Primary key — unique security identifier.
@@ -24,11 +27,14 @@ sources:
             description: Original issue date.
 
       - name: raw_positions
-        description: Daily portfolio holdings at market value.
-        freshness:
-          warn_after: {count: 2, period: day}
-          error_after: {count: 7, period: day}
-        loaded_at_field: position_date
+        description: >
+          Daily portfolio holdings at market value. Loaded by ingest_seed_data.py.
+          Source freshness note: position_date is a DATE column, not a TIMESTAMP.
+          dbt source freshness requires a TIMESTAMP-compatible loaded_at_field;
+          position_date cannot be used directly. Daily price freshness is monitored
+          operationally via the recon_stale_prices gate, which compares max(price_date)
+          to current_date. Source freshness is documented as Designed for v0.5
+          when a proper ingested_at TIMESTAMPTZ column is added to raw_positions.
         columns:
           - name: portfolio_id
             description: Portfolio identifier.
@@ -44,11 +50,13 @@ sources:
             description: Portfolio weight as a decimal fraction.
 
       - name: raw_prices
-        description: Daily closing prices per security.
-        freshness:
-          warn_after: {count: 2, period: day}
-          error_after: {count: 7, period: day}
-        loaded_at_field: price_date
+        description: >
+          Daily closing prices per security. Loaded by ingest_seed_data.py from yfinance.
+          Source freshness note: price_date is a DATE column, not a TIMESTAMP.
+          dbt source freshness requires a TIMESTAMP-compatible loaded_at_field;
+          price_date cannot be used directly. Price freshness is monitored via
+          the recon_stale_prices reconciliation gate. Source freshness via
+          TIMESTAMPTZ column is Designed for v0.5.
         columns:
           - name: sec_id
             description: Security identifier.
@@ -60,11 +68,10 @@ sources:
             description: Price source (yfinance or synthetic).
 
       - name: raw_benchmarks
-        description: Daily benchmark total returns.
-        freshness:
-          warn_after: {count: 2, period: day}
-          error_after: {count: 7, period: day}
-        loaded_at_field: benchmark_date
+        description: >
+          Daily benchmark total returns. Loaded by ingest_seed_data.py from yfinance.
+          Source freshness note: benchmark_date is a DATE column.
+          Same freshness monitoring approach as raw_prices.
         columns:
           - name: benchmark_id
             description: Benchmark identifier (e.g. BENCH_SPY, BENCH_AGG).
@@ -74,7 +81,11 @@ sources:
             description: Daily total return as a decimal.
 
       - name: raw_ratings
-        description: Point-in-time credit ratings per security and agency.
+        description: >
+          Point-in-time credit ratings per security and agency. Loaded by ingest_seed_data.py.
+          This repo uses synthetic ratings. Source freshness note: rating_date is a DATE column;
+          dbt source freshness requires TIMESTAMP. Freshness monitoring via TIMESTAMPTZ column
+          is Designed for v0.5.
         columns:
           - name: sec_id
             description: Security identifier.
@@ -86,7 +97,9 @@ sources:
             description: Rating agency name.
 
       - name: raw_stress_scenarios
-        description: Stress test factor shocks used in risk analytics.
+        description: >
+          Stress test factor shocks used in risk analytics. Static reference data;
+          no timestamp column present. Updated manually when scenario assumptions change.
         columns:
           - name: scenario_id
             description: Scenario identifier.
@@ -94,3 +107,58 @@ sources:
             description: Risk factor being shocked (equity, interest_rate, credit_spread).
           - name: shock_pct
             description: Magnitude of the shock in percentage points or basis points.
+
+      - name: raw_13f_filings
+        description: >
+          One row per 13F-HR filing. Loaded by bronze_13f_load.sql from SEC EDGAR.
+          Grain: accession_no. reported_value_thousands_usd is in thousands of USD.
+          Freshness: the _ingested_at TIMESTAMPTZ column (DEFAULT now()) is used as
+          loaded_at_field for dbt source freshness.
+          SEC Form 13F is filed quarterly within 45 days of each quarter-end.
+          Daily freshness thresholds are inappropriate for quarterly regulatory filings.
+          warn_after 120 days / error_after 180 days accommodates the full quarterly
+          cycle (90-day quarter + 45-day deadline + ingest processing window).
+          A new filing is expected within ~135 days of the prior one.
+        freshness:
+          warn_after: {count: 120, period: day}
+          error_after: {count: 180, period: day}
+        loaded_at_field: _ingested_at
+        columns:
+          - name: accession_no
+            description: Primary key — SEC EDGAR accession number with dashes.
+          - name: cik
+            description: SEC CIK zero-padded to 10 digits.
+          - name: manager_name
+            description: Filer entity name as reported to EDGAR.
+          - name: period_of_report
+            description: Reporting period end date (e.g. 2025-12-31).
+          - name: filed_date
+            description: Date the filing was submitted to EDGAR.
+          - name: reported_value_thousands_usd
+            description: tableValueTotal from the 13F cover page XML, in thousands of USD.
+          - name: entry_count
+            description: tableEntryTotal from the 13F cover page XML.
+          - name: _ingested_at
+            description: >
+              Timestamp when this row was loaded into the bronze table (TIMESTAMPTZ DEFAULT now()).
+              Used as loaded_at_field for dbt source freshness monitoring.
+
+      - name: raw_13f_holdings
+        description: >
+          One row per holding line in a 13F-HR Information Table XML.
+          Grain: holding_id (surrogate). Natural grain: (accession_no, cusip, ssh_prnamt_type, put_call).
+          value_thousands_usd is in thousands of USD — multiply by 1000 for value_usd.
+          Freshness note: holdings rows are loaded in bulk with each new filing.
+          Freshness is monitored at the filing level via raw_13f_filings._ingested_at.
+          No separate freshness block is set here to avoid duplicate monitoring.
+        columns:
+          - name: holding_id
+            description: Surrogate primary key (bigserial).
+          - name: accession_no
+            description: FK to raw_13f_filings.accession_no.
+          - name: cik
+            description: SEC CIK (denormalized from filing).
+          - name: cusip
+            description: 9-character CUSIP. Not null in bronze (quarantined records excluded at parse time).
+          - name: value_thousands_usd
+            description: Market value as filed, in thousands of USD. Multiply by 1000 for value_usd.

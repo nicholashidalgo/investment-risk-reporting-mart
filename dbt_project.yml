@@ -9,6 +9,30 @@ model-paths: ["models"]
 target-path: "target"
 clean-targets: ["target", "dbt_packages"]
 
+seeds:
+  investment_risk_mart:
+    +schema: bronze
+    yfinance_to_cusip:
+      +column_types:
+        ticker: text
+        cusip: text
+        notes: text
+    governance:
+      +schema: marts
+      certification_registry:
+        +column_types:
+          model_name: text
+          domain: text
+          owner_role: text
+          certification_status: text
+          certification_date: text
+          certified_by_role: text
+          required_controls: text
+          controls_passed: text
+          open_exceptions: text
+          notes: text
+          evidence_location: text
+
 models:
   investment_risk_mart:
     bronze:

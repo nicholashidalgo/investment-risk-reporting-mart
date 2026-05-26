@@ -1,0 +1,73 @@
+version: 2
+
+seeds:
+  - name: certification_registry
+    description: >
+      Certification status registry for governed data models. One row per model
+      in scope for governance certification. Maintained manually by the Data Steward
+      and Data Product Owner. This is a portfolio governance control artifact —
+      it does not represent a production certification workflow or a regulatory
+      compliance assertion.
+
+      Certification status values:
+        Draft      — model under development; controls not yet fully validated
+        Candidate  — all required controls pass but formal sign-off pending or
+                     known data quality limitations prevent full certification
+        Certified  — all required controls pass; data owner or steward has reviewed
+                     and signed off; data is approved for its intended consumption scope
+        Review Required — a previously Certified model has had a control failure or
+                         scope change requiring re-review
+    columns:
+      - name: model_name
+        description: dbt model name (matches ref() name).
+        tests:
+          - not_null
+          - unique
+      - name: domain
+        description: Business domain grouping.
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["institutional_holdings", "reconciliation_controls",
+                       "reference_data", "risk_analytics", "governance"]
+      - name: owner_role
+        description: Role responsible for certifying this model.
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["Data Product Owner", "Data Steward", "Analytics Engineering Lead",
+                       "Governance Reviewer", "Reporting Consumer"]
+      - name: certification_status
+        description: Current certification status.
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["Draft", "Candidate", "Certified", "Review Required"]
+      - name: certification_date
+        description: Date of most recent certification review.
+        tests:
+          - not_null
+      - name: certified_by_role
+        description: Role that performed the certification review.
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["Data Product Owner", "Data Steward", "Analytics Engineering Lead",
+                       "Governance Reviewer", "Reporting Consumer"]
+      - name: required_controls
+        description: Semicolon-separated list of required passing controls for certification.
+        tests:
+          - not_null
+      - name: controls_passed
+        description: Semicolon-separated list of controls that have passed.
+        tests:
+          - not_null
+      - name: open_exceptions
+        description: >
+          Known exceptions or limitations. 'none' if fully certified without caveats.
+          Exceptions do not block Certified status if they are documented data limitations
+          (e.g., synthetic data, yfinance not production-grade).
+      - name: notes
+        description: Free-text notes on certification scope, limitations, or context.
+      - name: evidence_location
+        description: Semicolon-separated paths to schema.yml, test files, or documentation.
